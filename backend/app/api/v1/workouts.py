@@ -383,16 +383,26 @@ async def get_fitness(
 ) -> dict | None:
     """Return CTL/ATL/TSB: from Intervals.icu (wellness_cache) when linked, else from our workout-based calculation."""
     uid = user.id
-    # If Intervals is linked, use synced wellness (CTL/ATL/TSB from Intervals)
+    # If Intervals is linked, use synced wellness (CTL/ATL/TSB from Intervals). Prefer today's row so numbers match Intervals UI.
     r = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == uid))
     if r.scalar_one_or_none():
-        w = await session.execute(
-            select(WellnessCache)
-            .where(WellnessCache.user_id == uid, WellnessCache.ctl.isnot(None))
-            .order_by(WellnessCache.date.desc())
-            .limit(1)
+        today = date.today()
+        w_today = await session.execute(
+            select(WellnessCache).where(
+                WellnessCache.user_id == uid,
+                WellnessCache.date == today,
+                WellnessCache.ctl.isnot(None),
+            )
         )
-        row = w.scalar_one_or_none()
+        row = w_today.scalar_one_or_none()
+        if not row or (row.ctl is None and row.atl is None):
+            w = await session.execute(
+                select(WellnessCache)
+                .where(WellnessCache.user_id == uid, WellnessCache.ctl.isnot(None))
+                .order_by(WellnessCache.date.desc())
+                .limit(1)
+            )
+            row = w.scalar_one_or_none()
         if row and (row.ctl is not None or row.atl is not None):
             ctl = row.ctl or 0.0
             atl = row.atl or 0.0

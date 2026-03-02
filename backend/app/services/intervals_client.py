@@ -22,6 +22,20 @@ def _normalize_athlete_id(athlete_id: str) -> str:
     return (athlete_id or "").strip()
 
 
+def _to_float(v: Any) -> float | None:
+    """Coerce API value to float (handles int, float, numeric string)."""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        try:
+            return float(v.strip().replace(",", "."))
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 def _parse_date(s: str | None) -> date | None:
     """Parse date from API (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss...)."""
     if not s or not isinstance(s, str):
@@ -84,24 +98,28 @@ async def get_wellness(
             if sleep_val is None and isinstance(item.get("sleepSecs"), (int, float)):
                 sleep_val = item["sleepSecs"] / 3600.0
             rhr_val = item.get("restingHeartRate") or item.get("rhr") or item.get("restingHR")
-            ctl_val = item.get("ctl") or item.get("icu_ctl")
-            atl_val = item.get("atl") or item.get("icu_atl")
-            tsb_val = item.get("tsb") or item.get("trainingStressBalance")
+            # Intervals.icu may return ctl/atl/tsb, icu_ctl/icu_atl, ctlLoad/atlLoad, or fitness/form/fatigue
+            ctl_val = item.get("ctl") or item.get("icu_ctl") or item.get("ctlLoad") or item.get("fitness")
+            atl_val = item.get("atl") or item.get("icu_atl") or item.get("atlLoad") or item.get("fatigue")
+            tsb_val = item.get("tsb") or item.get("trainingStressBalance") or item.get("form")
             if tsb_val is None and ctl_val is not None and atl_val is not None:
                 tsb_val = float(ctl_val) - float(atl_val)
             weight_val = item.get("weight")
             sport_info_raw = item.get("sportInfo")
             sport_info = sport_info_raw if isinstance(sport_info_raw, list) else None
+            ctl_f = _to_float(ctl_val)
+            atl_f = _to_float(atl_val)
+            tsb_f = _to_float(tsb_val) if tsb_val is not None else (ctl_f - atl_f if (ctl_f is not None and atl_f is not None) else None)
             out.append(
                 WellnessDay(
                     date=day or oldest,
                     sleep_hours=float(sleep_val) if isinstance(sleep_val, (int, float)) else None,
                     rhr=int(rhr_val) if isinstance(rhr_val, (int, float)) else None,
                     hrv=item.get("hrv") or item.get("hrvSDNN"),
-                    ctl=float(ctl_val) if isinstance(ctl_val, (int, float)) else None,
-                    atl=float(atl_val) if isinstance(atl_val, (int, float)) else None,
-                    tsb=float(tsb_val) if isinstance(tsb_val, (int, float)) else None,
-                    weight_kg=float(weight_val) if isinstance(weight_val, (int, float)) else None,
+                    ctl=ctl_f,
+                    atl=atl_f,
+                    tsb=tsb_f,
+                    weight_kg=_to_float(weight_val) if weight_val is not None else None,
                     sport_info=sport_info,
                     raw=item,
                 )
