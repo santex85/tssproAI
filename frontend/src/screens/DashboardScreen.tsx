@@ -1590,7 +1590,7 @@ export function DashboardScreen({
               {(wellnessToday || athleteProfile?.weight_kg != null || wellnessToday?.weight_kg != null) ? (
                 <>
                   <Text style={[styles.wellnessMetricsLine, { marginTop: 8 }]} numberOfLines={2}>
-                    {wellnessToday?.sleep_hours != null ? `${t("wellness.sleep")}\u00A0${formatSleepDuration(wellnessToday.sleep_hours)}` : `${t("wellness.sleep")} —`}
+                    {wellnessToday?.sleep_hours != null ? `${t("wellness.sleep")}\u00A0${formatSleepDuration(wellnessToday.sleep_hours, t)}` : `${t("wellness.sleep")} —`}
                     {wellnessToday?.rhr != null ? ` · RHR\u00A0${wellnessToday.rhr}` : " · RHR —"}
                     {wellnessToday?.hrv != null ? ` · HRV\u00A0${wellnessToday.hrv}` : " · HRV —"}
                     {(wellnessToday?.weight_kg ?? athleteProfile?.weight_kg) != null
@@ -1643,13 +1643,13 @@ export function DashboardScreen({
                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
                       <View>
                         <Text style={styles.sleepHistoryRowText}>
-                          {formatSleepHistoryDate(entry.date)} · {formatSleepDuration(entry.hours)}
+                          {formatSleepHistoryDate(entry.date)} · {formatSleepDuration(entry.hours, t)}
                           {entry.source === "manual" ? ` (${t("wellness.historyManual")})` : ""}
                         </Text>
                         {entry.source === "photo" && entry.extraction && (entry.extraction.quality_score != null || (entry.extraction.actual_sleep_hours != null && entry.extraction.sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours ?? 0) - (entry.extraction.sleep_hours ?? 0)) > 0.01)) ? (
                           <Text style={[styles.hint, { marginTop: 2, fontSize: 12 }]}>
                             {entry.extraction.sleep_hours != null && entry.extraction.actual_sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours - entry.extraction.sleep_hours)) > 0.01
-                              ? `Всего: ${formatSleepDuration(entry.extraction.sleep_hours)}`
+                              ? `Всего: ${formatSleepDuration(entry.extraction.sleep_hours, t)}`
                               : ""}
                             {entry.extraction.quality_score != null ? `${entry.extraction.sleep_hours != null && entry.extraction.actual_sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours - entry.extraction.sleep_hours)) > 0.01 ? " · " : ""}${Math.round(entry.extraction.quality_score)}` : ""}
                           </Text>
