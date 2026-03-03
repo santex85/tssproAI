@@ -353,7 +353,7 @@ function OverviewSection({
             {t("fitness.title")}
           </Text>
           <Text style={[styles.cardValue, { color: colors.text, fontSize: 16 }]}>
-            CTL {ctl_atl_tsb.ctl} · ATL {ctl_atl_tsb.atl} · TSB {ctl_atl_tsb.tsb}
+            CTL {Number(ctl_atl_tsb.ctl).toFixed(1)} · ATL {Number(ctl_atl_tsb.atl).toFixed(1)} · TSB {Number(ctl_atl_tsb.tsb).toFixed(1)}
           </Text>
         </View>
       )}
@@ -438,6 +438,7 @@ function TrainingSection({
   const barData = (data.daily || []).map((d) => ({
     value: d.tss,
     label: formatShortDate(d.date),
+    frontColor: colors.primary,
   }));
   const loadCtl = (data.load || []).filter((l) => l.ctl != null).map((l) => ({
     value: l.ctl!,
@@ -514,6 +515,7 @@ function NutritionSection({
   const barData = data.items.map((i) => ({
     value: i.calories,
     label: formatShortDate(i.date),
+    frontColor: colors.primary,
   }));
   const totalProtein = data.items.reduce((s, i) => s + i.protein_g, 0);
   const totalFat = data.items.reduce((s, i) => s + i.fat_g, 0);
