@@ -71,11 +71,28 @@ Blood oxygen ("Кислород в крови"): if the screenshot shows SpO2 / 
 Rules: No rounding. Fill factor_ratings from the factors section; fill phase minutes from graph or text; add sleep_phases timeline if you can estimate segments. Prefer null over guessing. Output ONLY valid JSON, no markdown."""
 
 
+def _language_for_locale(locale: str) -> str:
+    return {"ru": "Russian", "en": "English"}.get((locale or "ru").lower(), "Russian")
+
+
+def _sleep_prompt_with_locale(base_prompt: str, locale: str) -> str:
+    lang = _language_for_locale(locale)
+    lang_rule = (
+        f"JSON keys must always be in English (e.g. sleep_hours, factor_ratings, raw_notes). "
+        f"Text values (e.g. factor_ratings values, raw_notes) must be in {lang}."
+    )
+    return f"{lang_rule}\n\n{base_prompt}"
+
+
 async def extract_sleep_data(
-    image_bytes: bytes, mode: str = "lite", user_correction: str | None = None
+    image_bytes: bytes,
+    mode: str = "lite",
+    user_correction: str | None = None,
+    locale: str = "ru",
 ) -> SleepExtractionResult:
     """Parse image and return structured sleep extraction result. mode: 'lite' (default) or 'full'."""
-    prompt = SLEEP_EXTRACT_PROMPT_LITE if mode == "lite" else SLEEP_EXTRACT_PROMPT
+    base = SLEEP_EXTRACT_PROMPT_LITE if mode == "lite" else SLEEP_EXTRACT_PROMPT
+    prompt = _sleep_prompt_with_locale(base, locale)
     if user_correction:
         correction_line = (
             f'User correction: {user_correction}\n\n'

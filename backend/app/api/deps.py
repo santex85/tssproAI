@@ -42,6 +42,32 @@ async def get_current_user(
     return user
 
 
+SUPPORTED_LOCALES = frozenset({"ru", "en"})
+
+
+def _normalize_locale(value: str | None) -> str:
+    if not value or not value.strip():
+        return "ru"
+    code = value.strip().lower()[:10]
+    if code in SUPPORTED_LOCALES:
+        return code
+    return "ru"
+
+
+async def get_request_locale(
+    request: Request,
+    user: Annotated[User, Depends(get_current_user)],
+) -> str:
+    """Locale for this request: Accept-Language or X-App-Language header, else user.locale from DB, else 'ru'."""
+    header = request.headers.get("X-App-Language") or request.headers.get("Accept-Language")
+    if header:
+        # Accept-Language can be "en-US,en;q=0.9,ru;q=0.8" — take first tag
+        first = (header.split(",")[0] or "").strip().split("-")[0].lower()
+        if first in SUPPORTED_LOCALES:
+            return first
+    return _normalize_locale(user.locale)
+
+
 async def require_premium(
     user: Annotated[User, Depends(get_current_user)],
 ) -> User:

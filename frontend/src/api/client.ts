@@ -18,6 +18,18 @@ export function setOnUnauthorized(cb: (() => void) | null) {
   onUnauthorized = cb;
 }
 
+let apiLocale = "ru";
+export function setApiLocale(locale: string) {
+  apiLocale = locale === "en" ? "en" : "ru";
+}
+export function getApiLocale(): string {
+  return apiLocale;
+}
+
+function languageHeader(): Record<string, string> {
+  return { "X-App-Language": apiLocale };
+}
+
 type OfflineMutation = {
   path: string;
   method: string;
@@ -84,6 +96,7 @@ export async function api<T>(
   const token = await getAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...languageHeader(),
     ...(rest.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -162,7 +175,7 @@ export async function uploadPhoto(file: { uri: string; name?: string; type?: str
   const url = `${API_BASE}/api/v1/nutrition/analyze`;
   devLog(`uploadPhoto: POST ${url}`);
   const token = await getAccessToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", ...languageHeader() };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(url, {
     method: "POST",
@@ -221,7 +234,7 @@ export async function uploadPhotoForAnalysis(
   const query = save ? "" : "?save=false";
   const url = `${API_BASE}/api/v1/photo/analyze${query}`;
   const token = await getAccessToken();
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", ...languageHeader() };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(url, { method: "POST", body: form, headers });
   const text = await res.text();
@@ -706,6 +719,7 @@ export interface AthleteProfileResponse {
   nutrition_goals?: NutritionGoals | null;
   is_premium?: boolean;
   dev_can_toggle_premium?: boolean;
+  locale?: string;
 }
 
 export async function getAthleteProfile(): Promise<AthleteProfileResponse> {
@@ -721,6 +735,7 @@ export async function updateAthleteProfile(body: {
   protein_goal?: number | null;
   fat_goal?: number | null;
   carbs_goal?: number | null;
+  locale?: string | null;
 }): Promise<AthleteProfileResponse> {
   return api<AthleteProfileResponse>("/api/v1/athlete-profile", {
     method: "PATCH",
@@ -840,7 +855,7 @@ export async function sendChatMessageWithFit(
   }
   const res = await fetch(`${API_BASE}/api/v1/chat/send-with-file`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: { ...languageHeader(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: form,
   });
   if (res.status === 401) {

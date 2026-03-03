@@ -21,6 +21,7 @@ def _profile_response(profile: AthleteProfile | None, user: User) -> dict:
     base = {
         "is_premium": user.is_premium,
         "dev_can_toggle_premium": settings.app_env != "production",
+        "locale": user.locale or "ru",
     }
     if not profile:
         return {
@@ -69,6 +70,7 @@ class AthleteProfileUpdate(BaseModel):
     protein_goal: float | None = Field(None, ge=0, le=1000, description="Daily protein goal (g)")
     fat_goal: float | None = Field(None, ge=0, le=1000, description="Daily fat goal (g)")
     carbs_goal: float | None = Field(None, ge=0, le=1000, description="Daily carbs goal (g)")
+    locale: str | None = Field(None, description="User language preference (ru, en)")
 
 
 @router.get(
@@ -121,7 +123,13 @@ async def update_athlete_profile(
         profile.fat_goal = body.fat_goal
     if body.carbs_goal is not None:
         profile.carbs_goal = body.carbs_goal
+    if body.locale is not None:
+        from app.api.deps import SUPPORTED_LOCALES, _normalize_locale
+        normalized = _normalize_locale(body.locale)
+        if normalized in SUPPORTED_LOCALES:
+            user.locale = normalized
     await session.commit()
     await session.refresh(profile)
+    await session.refresh(user)
     r = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
     return _profile_response(r.scalar_one_or_none(), user)

@@ -19,6 +19,7 @@ import {
   createPortalSession,
   type AthleteProfileResponse,
 } from "../api/client";
+import { useTranslation } from "../i18n/context";
 
 const DEFAULT_CALORIE_GOAL = 2200;
 const DEFAULT_PROTEIN_GOAL = 120;
@@ -51,6 +52,7 @@ function getErrorMessage(e: unknown): string {
 }
 
 export function AthleteProfileScreen({ onClose, onOpenPricing }: { onClose: () => void; onOpenPricing?: () => void }) {
+  const { t, locale, setLocale } = useTranslation();
   const [profile, setProfile] = useState<AthleteProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -236,6 +238,26 @@ export function AthleteProfileScreen({ onClose, onOpenPricing }: { onClose: () =
             )}
           </View>
         ) : null}
+
+        <View style={styles.languageSection}>
+          <Text style={styles.sectionTitle}>{t("settings.language")}</Text>
+          <TouchableOpacity
+            style={styles.languageRow}
+            onPress={async () => {
+              const next = locale === "ru" ? "en" : "ru";
+              setLocale(next);
+              try {
+                await updateAthleteProfile({ locale: next });
+                setProfile((p) => (p ? { ...p, locale: next } : p));
+              } catch {
+                // locale already updated in UI and API client
+              }
+            }}
+          >
+            <Text style={styles.languageLabel}>{locale === "ru" ? t("settings.langRu") : t("settings.langEn")}</Text>
+            <Text style={styles.languageHint}>{locale === "ru" ? t("settings.langSwitchToEn") : t("settings.langSwitchToRu")}</Text>
+          </TouchableOpacity>
+        </View>
 
         {editing ? (
           <>
@@ -508,6 +530,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   subscriptionBtnText: { fontSize: 16, fontWeight: "600", color: "#38bdf8" },
+  languageSection: { marginTop: 20, marginBottom: 8 },
+  languageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    marginTop: 8,
+  },
+  languageLabel: { fontSize: 16, fontWeight: "600", color: "#e2e8f0" },
+  languageHint: { fontSize: 13, color: "#94a3b8" },
   input: {
     backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,

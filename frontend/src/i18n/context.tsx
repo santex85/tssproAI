@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setApiLocale } from "../api/client";
 import { messages } from "./translations";
 import type { Locale } from "./translations";
 
@@ -29,7 +30,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(LOCALE_STORAGE_KEY)
       .then((stored) => {
-        if (stored === "ru" || stored === "en") setLocaleState(stored);
+        if (stored === "ru" || stored === "en") {
+          setLocaleState(stored);
+          setApiLocale(stored);
+        }
       })
       .catch(() => {});
   }, []);
@@ -37,6 +41,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
     AsyncStorage.setItem(LOCALE_STORAGE_KEY, next);
+    setApiLocale(next);
   }, []);
 
   const t = useCallback(

@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import check_chat_usage, get_current_user, require_premium
+from app.api.deps import check_chat_usage, get_current_user, get_request_locale, require_premium
 from app.db.session import get_db
 from app.models.athlete_profile import AthleteProfile
 from app.models.chat_message import ChatMessage, MessageRole
@@ -27,9 +27,16 @@ from app.services.orchestrator import run_daily_decision
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-CHAT_SYSTEM = """You are a sports coach. You have the following context about the athlete. Use it to give brief, practical advice.
+CHAT_SYSTEM_BASE = """You are a sports coach. You have the following context about the athlete. Use it to give brief, practical advice.
 - Reply in 3–6 short bullets. If a section has no data, say "No data" for that topic; never invent numbers.
 - Only use numbers that appear in the context; if context is empty for a section, say you don't have that data."""
+
+CHAT_LOCALE_LANGUAGE = {"ru": "Russian", "en": "English"}
+
+
+def _chat_system_with_locale(locale: str) -> str:
+    lang = CHAT_LOCALE_LANGUAGE.get((locale or "ru").lower(), "Russian")
+    return f"You must respond only in {lang}. All your reply must be in this language.\n\n{CHAT_SYSTEM_BASE}"
 
 
 # Context limits: last N days, last M workouts, max chars per section to keep prompts smaller
@@ -418,6 +425,7 @@ async def send_message(
     session: Annotated[AsyncSession, Depends(get_db)],
     body: SendMessageBody,
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     _usage: Annotated[None, Depends(check_chat_usage)],
 ) -> dict:
     """Append user message, optionally run orchestrator, then get AI reply and return it."""
@@ -438,7 +446,7 @@ async def send_message(
 
     reply = ""
     if body.run_orchestrator:
-        result = await run_daily_decision(session, uid, date.today())
+        result = await run_daily_decision(session, uid, date.today(), locale=locale)
         reply = f"Decision: {result.decision.value}. {result.reason}"
         if result.suggestions_next_days:
             reply += f"\n\n{result.suggestions_next_days}"
@@ -448,7 +456,8 @@ async def send_message(
         from app.services.gemini_common import run_generate_content
         context = await _build_athlete_context(session, uid, user.is_premium)
         model = genai.GenerativeModel(settings.gemini_model)
-        prompt = f"{CHAT_SYSTEM}\n\nContext:\n{context}\n\nUser message: {body.message}"
+        chat_system = _chat_system_with_locale(locale)
+        prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {body.message}"
         response = await run_generate_content(model, prompt)
         reply = response.text if response and response.text else "No response."
 
@@ -468,6 +477,7 @@ async def send_message(
 async def send_message_with_file(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     _usage: Annotated[None, Depends(check_chat_usage)],
     message: Annotated[str, Form()] = "",
     run_orchestrator: Annotated[str, Form()] = "false",
@@ -548,7 +558,7 @@ async def send_message_with_file(
 
     reply = ""
     if run_orch:
-        result = await run_daily_decision(session, uid, date.today())
+        result = await run_daily_decision(session, uid, date.today(), locale=locale)
         reply = f"Decision: {result.decision.value}. {result.reason}"
         if result.suggestions_next_days:
             reply += f"\n\n{result.suggestions_next_days}"
@@ -561,7 +571,8 @@ async def send_message_with_file(
         if fit_summary:
             context += "\n\n## Uploaded workout (this message)\n" + fit_summary
         model = genai.GenerativeModel(settings.gemini_model)
-        prompt = f"{CHAT_SYSTEM}\n\nContext:\n{context}\n\nUser message: {user_content or 'Разбери приложенную тренировку.'}"
+        chat_system = _chat_system_with_locale(locale)
+        prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {user_content or 'Разбери приложенную тренировку.'}"
         response = await run_generate_content(model, prompt)
         reply = response.text if response and response.text else "No response."
 

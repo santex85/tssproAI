@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_premium
+from app.api.deps import get_current_user, get_request_locale, require_premium
 from app.db.session import get_db
 from app.models.athlete_profile import AthleteProfile
 from app.models.food_log import FoodLog
@@ -377,38 +377,44 @@ async def get_analytics_nutrition(
     }
 
 
-def _insight_instruction(chart_type: str, has_question: bool) -> str:
-    """Return chart-type-specific instruction for the AI insight."""
+def _language_for_locale(locale: str) -> str:
+    return {"ru": "Russian", "en": "English"}.get((locale or "ru").lower(), "Russian")
+
+
+def _insight_instruction(chart_type: str, has_question: bool, locale: str = "ru") -> str:
+    """Return chart-type-specific instruction for the AI insight. Reply in user's language."""
+    lang = _language_for_locale(locale)
+    lang_rule = f"Reply only in {lang}."
     if has_question:
-        return "Answer briefly in 2–5 bullet points. Use only the numbers from the data; do not invent data."
+        return f"{lang_rule} Answer briefly in 2–5 bullet points. Use only the numbers from the data; do not invent data."
     instructions = {
         "nutrition": (
             "Analyze the user's nutrition data: macronutrients (calories, protein, fat, carbs) and, if present, "
             "micronutrients (vitamins and minerals in extended_nutrients, e.g. fiber_g, vitamin_c_mg, iron_mg, "
             "calcium_mg, vitamin_d_iu). Note any deficiencies, excesses, or imbalances. Give 2–5 short bullet points "
-            "and practical recommendations. Reply in the same language as the user's interface (e.g. Russian)."
+            "and practical recommendations."
         ),
         "sleep": (
             "Analyze sleep and recovery: consistency of sleep hours, trends in RHR and HRV if present. "
             "Highlight notable patterns (e.g. under-sleeping, recovery trends). Give 2–5 short bullet points "
-            "and one or two practical recommendations. Reply in the same language as the user's interface."
+            "and one or two practical recommendations."
         ),
         "workouts": (
             "Analyze training data: volume (TSS, duration, distance), load trends (CTL/ATL/TSB if present), "
             "and consistency. Note any overreaching or recovery needs. Give 2–5 short bullet points and "
-            "practical recommendations. Reply in the same language as the user's interface."
+            "practical recommendations."
         ),
         "overview": (
             "Summarize the overview: main stats (sleep, workouts, nutrition, load). Note any notable highs/lows "
-            "and give one or two practical recommendations. Reply in 2–5 short bullet points in the same "
-            "language as the user's interface."
+            "and give one or two practical recommendations. Reply in 2–5 short bullet points."
         ),
     }
-    return instructions.get(
+    base = instructions.get(
         chart_type,
         "Summarize what this chart shows: main trends, notable highs/lows, and one or two practical recommendations. "
-        "Reply in 2–5 short bullet points in the same language as the user's interface.",
+        "Reply in 2–5 short bullet points.",
     )
+    return f"{lang_rule} {base}"
 
 
 class InsightRequest(BaseModel):
@@ -429,6 +435,7 @@ class InsightRequest(BaseModel):
 async def post_analytics_insight(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(require_premium)],
+    locale: Annotated[str, Depends(get_request_locale)],
     body: InsightRequest,
 ) -> dict[str, str]:
     """Send chart data and optional question to Gemini; return text explanation. Pro only."""
@@ -448,7 +455,7 @@ async def post_analytics_insight(
 
         data_str = json.dumps(body.data, default=str, ensure_ascii=False)
         has_question = bool(body.question and body.question.strip())
-        instruction = _insight_instruction(body.chart_type, has_question)
+        instruction = _insight_instruction(body.chart_type, has_question, locale)
 
         prompt = f"""You are a sports and wellness coach. The user is viewing an analytics chart of type "{body.chart_type}".
 

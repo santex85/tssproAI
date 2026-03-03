@@ -17,6 +17,7 @@ class User(Base):
     push_platform: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    locale: Mapped[str | None] = mapped_column(String(10), nullable=True, default="ru")
 
     food_logs: Mapped[list["FoodLog"]] = relationship("FoodLog", back_populates="user")
     wellness_cache: Mapped[list["WellnessCache"]] = relationship("WellnessCache", back_populates="user")

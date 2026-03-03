@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.deps import check_photo_usage, get_current_user
+from app.api.deps import check_photo_usage, get_current_user, get_request_locale
 from app.core.rate_limit import check_and_consume_photo_ai_limit
 from app.db.session import get_db
 from app.models.food_log import FoodLog, MealType
@@ -75,6 +75,7 @@ def _parse_optional_date(value: str | None) -> date | None:
 async def analyze_photo(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     _usage: Annotated[None, Depends(check_photo_usage)],
     file: Annotated[UploadFile, File(description="Photo: food or sleep data")],
     meal_type: Annotated[str | None, Form()] = None,
@@ -92,7 +93,7 @@ async def analyze_photo(
     image_bytes = await resize_image_for_ai_async(image_bytes)
 
     try:
-        kind, result = await classify_and_analyze_image(image_bytes)
+        kind, result = await classify_and_analyze_image(image_bytes, locale=locale)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except PydanticValidationError:
@@ -106,7 +107,7 @@ async def analyze_photo(
         extended_nutrients: dict | None = None
         try:
             food_result, extended_nutrients = await analyze_food_from_image(
-                image_bytes, extended=True
+                image_bytes, extended=True, locale=locale
             )
         except (ValueError, Exception):
             pass  # keep classifier result if extended analysis fails
@@ -250,6 +251,7 @@ async def analyze_photo(
 async def analyze_sleep_photo(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     file: Annotated[UploadFile, File(description="Sleep tracker screenshot")],
     mode: Annotated[str, Query(description="Extraction mode: lite (default) or full")] = "lite",
 ) -> SleepExtractionResponse:
@@ -267,7 +269,7 @@ async def analyze_sleep_photo(
     image_bytes = await resize_image_for_ai_async(image_bytes)
     try:
         record, data = await analyze_and_save_sleep(
-            session, user.id, image_bytes, mode=mode, image_storage_path=image_storage_path
+            session, user.id, image_bytes, mode=mode, image_storage_path=image_storage_path, locale=locale
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -326,6 +328,7 @@ async def save_sleep_from_preview(
 async def reanalyze_sleep_extraction(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     extraction_id: Annotated[int, Path(description="Sleep extraction ID")],
     body: SleepReanalyzeRequest,
 ) -> SleepExtractionResponse:
@@ -352,7 +355,7 @@ async def reanalyze_sleep_extraction(
     image_bytes = await resize_image_for_ai_async(image_bytes)
     try:
         new_result = await extract_sleep_data(
-            image_bytes, mode="lite", user_correction=body.correction
+            image_bytes, mode="lite", user_correction=body.correction, locale=locale
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

@@ -17,8 +17,10 @@ logger = logging.getLogger(__name__)
 
 REMINDER_TYPE_RECOVERY_HEAVY = "recovery_heavy_workout"
 
-RECOVERY_PUSH_TITLE = "Восстановление"
-RECOVERY_PUSH_BODY = "Вчера была тяжёлая тренировка. Открой приложение — там советы по восстановлению."
+RECOVERY_PUSH_BY_LOCALE = {
+    "ru": ("Восстановление", "Вчера была тяжёлая тренировка. Открой приложение — там советы по восстановлению."),
+    "en": ("Recovery", "You had a heavy workout yesterday. Open the app for recovery advice."),
+}
 
 
 async def get_users_for_recovery_reminder(
@@ -95,9 +97,17 @@ async def send_recovery_reminder_pushes(
     today_date: date,
 ) -> None:
     """Send recovery reminder push to each user and record in retention_reminders_sent."""
+    r = await session.execute(
+        select(User.id, User.locale).where(User.id.in_(user_ids))
+    )
+    user_locales = {row[0]: (row[1] or "ru") for row in r.all()}
     for user_id in user_ids:
+        locale = user_locales.get(user_id, "ru")
+        if locale not in RECOVERY_PUSH_BY_LOCALE:
+            locale = "ru"
+        title, body = RECOVERY_PUSH_BY_LOCALE[locale]
         try:
-            await send_push_to_user(session, user_id, RECOVERY_PUSH_TITLE, RECOVERY_PUSH_BODY)
+            await send_push_to_user(session, user_id, title, body)
             session.add(
                 RetentionReminderSent(
                     user_id=user_id,

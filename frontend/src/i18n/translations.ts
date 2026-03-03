@@ -19,6 +19,8 @@ export const ru = {
     back: "Назад",
     langRu: "Русский",
     langEn: "English",
+    langSwitchToEn: "Switch to English",
+    langSwitchToRu: "Переключить на русский",
   },
   common: {
     close: "Закрыть",
@@ -181,6 +183,8 @@ export const en = {
     back: "Back",
     langRu: "Russian",
     langEn: "English",
+    langSwitchToEn: "Switch to English",
+    langSwitchToRu: "Switch to Russian",
   },
   common: {
     close: "Close",

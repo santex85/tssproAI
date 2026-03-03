@@ -32,15 +32,25 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-SYSTEM_PROMPT = """You are a nutrition analysis system. Your ONLY task is to analyze a photo of a plate of food and return a strict JSON object.
+def _language_for_locale(locale: str) -> str:
+    return {"ru": "Russian", "en": "English"}.get((locale or "ru").lower(), "Russian")
+
+
+def _nutrition_system_prompt(locale: str, extended: bool) -> str:
+    lang = _language_for_locale(locale)
+    lang_rule = (
+        f"You communicate with the user. All text values in your JSON (e.g. dish name in 'name') must be STRICTLY in {lang}. "
+        "JSON keys must always be in English (name, portion_grams, calories, protein_g, fat_g, carbs_g); only values may be in the user's language."
+    )
+    base = """You are a nutrition analysis system. Your ONLY task is to analyze a photo of a plate of food and return a strict JSON object.
 
 Rules:
 - Estimate dish density, hidden ingredients (oils, sauces), and portion volume.
 - Output ONLY valid JSON with exactly these fields: name (short dish name), portion_grams, calories, protein_g, fat_g, carbs_g.
 - No explanations, no markdown, no metaphors. Only the JSON object.
 - All numeric values must be non-negative numbers. portion_grams and macros in grams, calories in kcal."""
-
-SYSTEM_PROMPT_EXTENDED = """You are a nutrition analysis system for premium users. Analyze a photo of a plate of food and return a strict JSON object with macros AND estimated micronutrients.
+    if extended:
+        base = """You are a nutrition analysis system for premium users. Analyze a photo of a plate of food and return a strict JSON object with macros AND estimated micronutrients.
 
 Rules:
 - Estimate dish density, hidden ingredients (oils, sauces), and portion volume.
@@ -49,6 +59,7 @@ Rules:
 - Additional fields (use null if not estimable; otherwise a number). Be conservative with estimates; these are typical values for the dish:
   fiber_g, sodium_mg, calcium_mg, iron_mg, potassium_mg, magnesium_mg, zinc_mg, vitamin_a_mcg, vitamin_c_mg, vitamin_d_iu.
 - Standard units: fiber in g; sodium, calcium, iron, potassium, magnesium, zinc in mg; vitamin_a in mcg RAE; vitamin_c in mg; vitamin_d in IU."""
+    return f"{lang_rule}\n\n{base}"
 
 EXTENDED_NUTRIENT_KEYS = frozenset({
     "fiber_g", "sodium_mg", "calcium_mg", "iron_mg", "potassium_mg",
@@ -67,15 +78,15 @@ def _extract_extended_nutrients(data: dict) -> dict | None:
 
 
 async def analyze_food_from_image(
-    image_bytes: bytes, *, extended: bool = False, user_correction: str | None = None
+    image_bytes: bytes,
+    *,
+    extended: bool = False,
+    user_correction: str | None = None,
+    locale: str = "ru",
 ) -> tuple[NutritionAnalysisResult, dict | None]:
     """Send image to Gemini; return (nutrition result, extended_nutrients or None)."""
-    if extended:
-        prompt = SYSTEM_PROMPT_EXTENDED
-        config = GENERATION_CONFIG_EXTENDED
-    else:
-        prompt = SYSTEM_PROMPT
-        config = GENERATION_CONFIG
+    prompt = _nutrition_system_prompt(locale, extended)
+    config = GENERATION_CONFIG_EXTENDED if extended else GENERATION_CONFIG
     if user_correction:
         correction_line = (
             f'User correction: the dish is actually "{user_correction}". '
@@ -102,20 +113,27 @@ async def analyze_food_from_image(
     return (result, extended_nutrients)
 
 
-TEXT_RECALC_PROMPT = """You are a nutrition analysis system. Recalculate macros for a dish based on text description.
+def _text_recalc_prompt(locale: str, extended: bool) -> str:
+    lang = _language_for_locale(locale)
+    lang_rule = (
+        f"All text values in JSON (e.g. dish name in 'name') must be in {lang}. "
+        "JSON keys must always be in English; only values may be in the user's language."
+    )
+    base = """You are a nutrition analysis system. Recalculate macros for a dish based on text description.
 
 Input: dish name, portion size in grams, and optional user correction (e.g. "vegan sausage instead of regular").
 Output ONLY valid JSON with exactly these fields: name (short dish name), portion_grams, calories, protein_g, fat_g, carbs_g.
 All numeric values must be non-negative numbers. portion_grams and macros in grams, calories in kcal.
 No explanations, no markdown. Only the JSON object."""
-
-TEXT_RECALC_PROMPT_EXTENDED = """You are a nutrition analysis system for premium users. Recalculate macros and micronutrients for a dish based on text description.
+    if extended:
+        base = """You are a nutrition analysis system for premium users. Recalculate macros and micronutrients for a dish based on text description.
 
 Input: dish name, portion size in grams, and optional user correction.
 Output ONLY valid JSON. No explanations, no markdown.
 Required fields: name, portion_grams, calories, protein_g, fat_g, carbs_g. All non-negative numbers.
 Additional fields (use null if not estimable): fiber_g, sodium_mg, calcium_mg, iron_mg, potassium_mg, magnesium_mg, zinc_mg, vitamin_a_mcg, vitamin_c_mg, vitamin_d_iu.
 Standard units: fiber in g; sodium, calcium, iron, potassium, magnesium, zinc in mg; vitamin_a in mcg RAE; vitamin_c in mg; vitamin_d in IU."""
+    return f"{lang_rule}\n\n{base}"
 
 
 async def analyze_food_from_text(
@@ -124,12 +142,13 @@ async def analyze_food_from_text(
     correction: str,
     *,
     extended: bool = True,
+    locale: str = "ru",
 ) -> tuple[NutritionAnalysisResult, dict | None]:
     """Recalculate macros from text (dish name + portion + user correction). No image needed."""
-    prompt = TEXT_RECALC_PROMPT_EXTENDED if extended else TEXT_RECALC_PROMPT
+    sys_prompt = _text_recalc_prompt(locale, extended)
     correction_part = f" User correction: {correction}." if correction else " No additional correction."
     user_input = f"Dish: {name}, portion: {portion_grams}g.{correction_part}"
-    full_prompt = f"{user_input}\n\n{prompt}"
+    full_prompt = f"{sys_prompt}\n\n{user_input}"
     config = GENERATION_CONFIG_EXTENDED if extended else GENERATION_CONFIG
     model = genai.GenerativeModel(
         settings.gemini_model,

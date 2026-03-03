@@ -39,6 +39,12 @@ if settings.sentry_dsn:
 scheduler = AsyncIOScheduler()
 
 
+ORCHESTRATOR_PUSH_TITLE_BY_LOCALE = {
+    "ru": "Решение на день",
+    "en": "Daily decision",
+}
+
+
 async def scheduled_orchestrator_run():
     """Run orchestrator (daily decision) for every user at configured hours (parallel with semaphore)."""
     import asyncio
@@ -50,24 +56,33 @@ async def scheduled_orchestrator_run():
     from app.services.push_notifications import send_push_to_user
 
     async with async_session_maker() as session:
-        r = await session.execute(select(User.id).where(User.is_premium.is_(True)))
-        user_ids = [row[0] for row in r.all()]
-    if not user_ids:
+        r = await session.execute(
+            select(User.id, User.locale).where(User.is_premium.is_(True))
+        )
+        user_rows = [(row[0], (row[1] or "ru")) for row in r.all()]
+    if not user_rows:
         return
 
     sem = asyncio.Semaphore(5)
 
-    async def run_for_user(uid: int) -> None:
+    async def run_for_user(uid: int, locale: str) -> None:
         async with sem:
             async with async_session_maker() as session:
-                result = await run_daily_decision(session, uid, date.today())
+                result = await run_daily_decision(session, uid, date.today(), locale=locale)
                 await session.commit()
                 summary = f"{result.decision.value}: {(result.reason or '')[:80]}"
                 if result.reason and len(result.reason or '') > 80:
                     summary += "..."
-                await send_push_to_user(session, uid, "Daily decision", summary)
+                title = ORCHESTRATOR_PUSH_TITLE_BY_LOCALE.get(locale, ORCHESTRATOR_PUSH_TITLE_BY_LOCALE["en"])
+                await send_push_to_user(session, uid, title, summary)
 
-    await asyncio.gather(*[run_for_user(uid) for uid in user_ids])
+    await asyncio.gather(*[run_for_user(uid, loc) for uid, loc in user_rows])
+
+
+SLEEP_REMINDER_BY_LOCALE = {
+    "ru": ("Сон", "Укажите данные сна за сегодня или загрузите скриншот."),
+    "en": ("Sleep", "Enter today's sleep data or upload a screenshot."),
+}
 
 
 async def scheduled_sleep_reminder():
@@ -80,8 +95,6 @@ async def scheduled_sleep_reminder():
     from app.services.push_notifications import send_push_to_user
 
     today = date.today()
-    title = "Сон"
-    body = "Укажите данные сна за сегодня или загрузите скриншот."
 
     async with async_session_maker() as session:
         # Users who have wellness_cache for today with sleep_hours set
@@ -93,13 +106,14 @@ async def scheduled_sleep_reminder():
         )
         users_with_sleep = {row[0] for row in r_has_sleep.all()}
 
-        # All user ids
-        r_all = await session.execute(select(User.id))
-        all_user_ids = [row[0] for row in r_all.all()]
+        # All users (id, locale)
+        r_all = await session.execute(select(User.id, User.locale))
+        all_users = [(row[0], (row[1] or "ru")) for row in r_all.all()]
 
-    for uid in all_user_ids:
+    for uid, locale in all_users:
         if uid in users_with_sleep:
             continue
+        title, body = SLEEP_REMINDER_BY_LOCALE.get(locale, SLEEP_REMINDER_BY_LOCALE["ru"])
         async with async_session_maker() as session:
             await send_push_to_user(session, uid, title, body)
 

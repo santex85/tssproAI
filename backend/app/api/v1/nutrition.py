@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_request_locale
 from app.db.session import get_db
 from app.models.food_log import FoodLog, MealType
 from app.models.user import User
@@ -40,6 +40,7 @@ router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 async def analyze_nutrition(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     file: Annotated[UploadFile, File(description="Photo of the plate")],
     meal_type: Annotated[str | None, Form()] = None,
 ) -> NutritionAnalyzeResponse:
@@ -67,7 +68,7 @@ async def analyze_nutrition(
     image_bytes = await resize_image_for_ai_async(image_bytes)
     try:
         result, extended_nutrients = await analyze_food_from_image(
-            image_bytes, extended=True
+            image_bytes, extended=True, locale=locale
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -283,6 +284,7 @@ async def get_nutrition_entry(
 async def reanalyze_nutrition_entry(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
     entry_id: Annotated[int, Path(description="Food log entry ID")],
     body: ReanalyzeRequest,
 ) -> NutritionDayEntry:
@@ -302,6 +304,7 @@ async def reanalyze_nutrition_entry(
             portion_grams=recalc_portion,
             correction=recalc_correction,
             extended=True,
+            locale=locale,
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

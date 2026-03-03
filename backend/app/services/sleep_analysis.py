@@ -181,10 +181,11 @@ async def analyze_and_save_sleep(
     image_bytes: bytes,
     mode: str = "lite",
     image_storage_path: str | None = None,
+    locale: str = "ru",
 ) -> tuple[SleepExtraction, dict]:
     """
     Глубокий анализ фото сна: извлечение метрик (Gemini), сохранение в sleep_extractions,
     возврат записи и extracted_data для ответа API. mode: 'lite' (default) or 'full'.
     """
-    result = await extract_sleep_data(image_bytes, mode=mode)
+    result = await extract_sleep_data(image_bytes, mode=mode, locale=locale)
     return await save_sleep_result(session, user_id, result, image_storage_path=image_storage_path)

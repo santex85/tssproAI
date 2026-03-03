@@ -71,8 +71,23 @@ When type is "workout", set "workout" to: {
 Output ONLY valid JSON. No markdown."""
 
 
+def _language_for_locale(locale: str) -> str:
+    return {"ru": "Russian", "en": "English"}.get((locale or "ru").lower(), "Russian")
+
+
+def _photo_system_prompt(locale: str) -> str:
+    lang = _language_for_locale(locale)
+    lang_rule = (
+        f"All text values in your JSON (dish name in food.name, workout name/notes, raw_notes, factor_ratings values) must be STRICTLY in {lang}. "
+        "JSON keys must always be in English (e.g. name, type, food, sleep, workout); only string values may be in the user's language."
+    )
+    return f"{lang_rule}\n\n{SYSTEM_PROMPT}"
+
+
 async def classify_and_analyze_image(
     image_bytes: bytes,
+    *,
+    locale: str = "ru",
 ) -> tuple[str, NutritionAnalysisResult | SleepExtractionResult | WellnessPhotoResult | WorkoutPhotoResult]:
     """
     Single Gemini call: classify image and return the analysis.
@@ -84,7 +99,7 @@ async def classify_and_analyze_image(
         safety_settings=SAFETY_SETTINGS,
     )
     part = {"mime_type": "image/jpeg", "data": image_bytes}
-    contents = [SYSTEM_PROMPT, part]
+    contents = [_photo_system_prompt(locale), part]
     response = await run_generate_content(model, contents)
     if not response or not response.text:
         raise ValueError("Empty response from Gemini")
