@@ -66,7 +66,7 @@ export function AnalyticsScreen({ onClose, onOpenPricing }: { onClose: () => voi
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightText, setInsightText] = useState("");
   const [insightPayload, setInsightPayload] = useState<{ chartType: TabKey; data: Record<string, unknown> } | null>(null);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: windowHeight } = useWindowDimensions();
 
   const loadOverview = useCallback(async () => {
     try {
@@ -293,7 +293,13 @@ export function AnalyticsScreen({ onClose, onOpenPricing }: { onClose: () => voi
               <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
             ) : (
               insightText !== "" && (
-                <Text style={[styles.insightText, { color: colors.text }]}>{insightText}</Text>
+                <ScrollView
+                  style={{ maxHeight: Platform.OS === "web" ? 320 : windowHeight * 0.35 }}
+                  contentContainerStyle={{ paddingBottom: 16 }}
+                  showsVerticalScrollIndicator
+                >
+                  <Text style={[styles.insightText, { color: colors.text }]}>{insightText}</Text>
+                </ScrollView>
               )
             )}
           </Pressable>
@@ -711,7 +717,7 @@ function makeStyles(colors: Record<string, string>) {
       minHeight: 44,
       marginBottom: 12,
     },
-    insightText: { fontSize: 14, lineHeight: 22 },
+    insightText: { fontSize: 14, lineHeight: 24, paddingVertical: 4 },
     micronutrientsBlock: { marginTop: 12, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.surfaceBorder },
     micronutrientRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
     micronutrientLabel: { fontSize: 13, color: colors.textMuted },

@@ -398,7 +398,8 @@ def _insight_instruction(chart_type: str, has_question: bool, locale: str = "ru"
             "Analyze the user's nutrition data: macronutrients (calories, protein, fat, carbs) and, if present, "
             "micronutrients (vitamins and minerals in extended_nutrients, e.g. fiber_g, vitamin_c_mg, iron_mg, "
             "calcium_mg, vitamin_d_iu). Note any deficiencies, excesses, or imbalances. Give 2–5 short bullet points "
-            "and practical recommendations."
+            "and practical recommendations. In practical recommendations, when relevant, gently favor more plant-based "
+            "options (vegetables, legumes, whole grains, fruits) where appropriate, without being prescriptive or extreme."
         ),
         "sleep": (
             "Analyze sleep and recovery: consistency of sleep hours, trends in RHR and HRV if present. "
