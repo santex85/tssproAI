@@ -334,13 +334,15 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
             />
             <Text style={styles.modalLabel}>{t("nutrition.mealType")}</Text>
             <View style={styles.mealTypeRow}>
-              {MEAL_TYPES.map((t) => (
+              {MEAL_TYPES.map((mealKey) => (
                 <TouchableOpacity
-                  key={t}
-                  onPress={() => setMealType(t)}
-                  style={[styles.mealTypeBtn, mealType === t && styles.mealTypeBtnActive]}
+                  key={mealKey}
+                  onPress={() => setMealType(mealKey)}
+                  style={[styles.mealTypeBtn, mealType === mealKey && styles.mealTypeBtnActive]}
                 >
-                  <Text style={[styles.mealTypeBtnText, mealType === t && styles.mealTypeBtnTextActive]}>{t}</Text>
+                  <Text style={[styles.mealTypeBtnText, mealType === mealKey && styles.mealTypeBtnTextActive]}>
+                    {t(`camera.meal${mealKey.charAt(0).toUpperCase() + mealKey.slice(1)}`)}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
