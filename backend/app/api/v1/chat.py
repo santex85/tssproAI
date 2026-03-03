@@ -89,7 +89,12 @@ CHAT_SYSTEM_REGULAR = """You are a sports coach. You have the following context 
 CHAT_SYSTEM_PREMIUM = """You are the athlete's personal coach in a live, conversational mode. You can discuss any of their metrics and any topic that the context supports (training load, sleep, nutrition, wellness, goals).
 - Be warm and human: respond like a real coach who knows the athlete's data. Avoid robotic or template phrases. It's fine to be more detailed or to ask a follow-up when it helps.
 - Use only numbers and facts from the context; never invent data. If something is missing, say so naturally.
-- You may give longer, more conversational answers when the user asks for deeper discussion or when explaining trends and recommendations."""
+- You may give longer, more conversational answers when the user asks for deeper discussion or when explaining trends and recommendations.
+
+Avoid repetition and rigid structure:
+- Do not repeat the same metrics (TSB, ATL, CTL, calories, sleep hours, etc.) in every message. If you or the user already mentioned them in this conversation, refer briefly to what was said ("as I said", "given your current balance") or answer only the new question; do not re-list the numbers.
+- Vary your responses: do not use the same template every time (e.g. load then sleep then nutrition then advice). Answer the user's specific question first; add one or two relevant facts only when needed.
+- For short user messages (e.g. "What should I do tomorrow?", "A bit", "No"), give a short, focused reply without re-listing all metrics."""
 
 CHAT_LOCALE_LANGUAGE = {"ru": "Russian", "en": "English"}
 
@@ -104,6 +109,9 @@ def _chat_system_with_locale(locale: str, is_premium: bool = False) -> str:
 CHAT_CONTEXT_DAYS = 7
 CHAT_WORKOUTS_LIMIT = 10
 CHAT_SECTION_MAX_CHARS = 1200
+# Conversation history for chat: last N messages (chronological), max total chars to avoid blowing the prompt
+CHAT_HISTORY_MESSAGES_LIMIT = 20
+CHAT_HISTORY_MAX_CHARS = 3000
 
 
 async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium: bool = False) -> str:
@@ -262,6 +270,36 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
         _cap(json.dumps(workouts, default=str)),
     ]
     return "\n".join(parts)
+
+
+async def _get_conversation_block(
+    session: AsyncSession,
+    user_id: int,
+    thread_id: int,
+    max_messages: int = CHAT_HISTORY_MESSAGES_LIMIT,
+    max_chars: int = CHAT_HISTORY_MAX_CHARS,
+) -> str:
+    """Load last N messages for the thread in chronological order, format as 'User: ... Coach: ...', truncate if over max_chars."""
+    r = await session.execute(
+        select(ChatMessage.role, ChatMessage.content)
+        .where(ChatMessage.user_id == user_id, ChatMessage.thread_id == thread_id)
+        .order_by(ChatMessage.timestamp.desc())
+        .limit(max_messages)
+    )
+    rows = list(r.all())
+    rows.reverse()  # chronological order
+    if not rows:
+        return ""
+    lines = []
+    total = 0
+    for role, content in rows:
+        label = "Coach" if role == MessageRole.assistant.value else "User"
+        line = f"{label}: {content}"
+        if max_chars and total + len(line) + 1 > max_chars and lines:
+            break
+        lines.append(line)
+        total += len(line) + 1
+    return "\n".join(lines)
 
 
 def _fit_data_to_summary(data: dict) -> str:
@@ -519,7 +557,14 @@ async def send_message(
         context = await _build_athlete_context(session, uid, user.is_premium)
         model = genai.GenerativeModel(settings.gemini_model)
         chat_system = _chat_system_with_locale(locale, user.is_premium)
-        prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {body.message}"
+        conversation_block = await _get_conversation_block(session, uid, thread_id)
+        if conversation_block:
+            prompt = (
+                f"{chat_system}\n\nContext:\n{context}\n\nConversation so far:\n{conversation_block}\n\n"
+                "Reply as the coach to the last user message. Do not repeat numbers or advice you already gave above."
+            )
+        else:
+            prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {body.message}"
         response = await run_generate_content(model, prompt)
         reply = response.text if response and response.text else "No response."
 
