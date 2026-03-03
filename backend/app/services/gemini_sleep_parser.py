@@ -26,25 +26,25 @@ SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-SLEEP_EXTRACT_PROMPT_LITE = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker. Interface can be in any language. Extract only the main metrics. Do NOT round: use exact decimals (7h 54m = 7.9). Prefer null over guessing — if you cannot read a value, omit it or set null.
+SLEEP_EXTRACT_PROMPT_LITE = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker. Interface can be in any language. Extract only the main metrics. Never round to whole hours: use exact decimals. Examples: "6 ч 31 мин" or "6h 31m" → sleep_hours 6.52; "6 ч 5 мин" or "Фактическое время сна 6 ч 5 мин" → actual_sleep_hours 6.08. Formula: hours + minutes/60. Prefer null over guessing — if you cannot read a value, omit it or set null.
 
 Return a JSON object with only these optional fields (null for missing):
 - date: string YYYY-MM-DD
-- sleep_hours, actual_sleep_hours: numbers (exact decimals)
+- sleep_hours, actual_sleep_hours: numbers (exact decimals, e.g. 6.52 not 6)
 - quality_score: number 0-100
 - bedtime, wake_time: "HH:MM"
 - deep_sleep_min, rem_min, light_sleep_min, awake_min: minutes (optional, from phases if visible)
 
 Output ONLY valid JSON, no markdown."""
 
-SLEEP_EXTRACT_PROMPT = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker (e.g. Russian: Сон, Время сна, Показатель сна, Фазы сна, Факторы влияющие на показатели сна). Interface can be in any language. Extract EVERY number, label, and graph. Do NOT round: use exact decimals (7h 54m = 7.9, 7h 9m = 7.15). Prefer null over guessing — if you cannot read a value, omit it or set null.
+SLEEP_EXTRACT_PROMPT = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker (e.g. Russian: Сон, Время сна, Показатель сна, Фазы сна, Факторы влияющие на показатели сна). Interface can be in any language. Extract EVERY number, label, and graph. Never round to whole hours: use exact decimals. Examples: "Время сна 6 ч 31 мин" → sleep_hours 6.52; "Фактическое время сна 6 ч 5 мин" → actual_sleep_hours 6.08. Formula: hours + minutes/60. Prefer null over guessing — if you cannot read a value, omit it or set null.
 
 Return a JSON object with only these optional fields (null for missing):
 
 Basic:
 - date: string YYYY-MM-DD ("23/2" → current year 02-23)
-- sleep_hours, sleep_minutes: total sleep (exact decimal for hours)
-- actual_sleep_hours, actual_sleep_minutes: "Фактическое время сна" / actual sleep time
+- sleep_hours, sleep_minutes: total sleep from "Время сна" (exact decimal for hours, e.g. 6.52)
+- actual_sleep_hours, actual_sleep_minutes: "Фактическое время сна" / actual sleep time (exact decimal)
 - time_in_bed_min: total time in bed, minutes
 - quality_score: number 0-100 (main score e.g. 54)
 - score_delta: number (change vs previous, e.g. 27 or -27 if shown next to score)
@@ -64,6 +64,9 @@ Optional timeline from "Фазы сна" graph (estimate segment boundaries from
 Other:
 - latency_min, awakenings
 - source_app, raw_notes (any comment under score, e.g. "1 период короткого сна...")
+
+Blood oxygen ("Кислород в крови"): if the screenshot shows SpO2 / blood oxygen graph or numbers:
+- spo2_avg, spo2_min, spo2_max: numbers 0-100 (average, minimum, maximum % if visible).
 
 Rules: No rounding. Fill factor_ratings from the factors section; fill phase minutes from graph or text; add sleep_phases timeline if you can estimate segments. Prefer null over guessing. Output ONLY valid JSON, no markdown."""
 

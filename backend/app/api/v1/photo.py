@@ -456,6 +456,7 @@ async def list_sleep_extractions(
             "sleep_date": data.get("date"),
             "sleep_hours": sh,
             "actual_sleep_hours": ah,
+            "quality_score": data.get("quality_score"),
             "can_reanalyze": bool(image_storage_path) and user.is_premium,
         })
     return out

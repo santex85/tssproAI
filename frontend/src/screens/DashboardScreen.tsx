@@ -98,6 +98,15 @@ function formatDuration(sec: number | undefined): string {
   return `${m}m`;
 }
 
+/** Format sleep hours as "X ч Y мин" for decimals (e.g. 6.52 → "6 ч 31 мин"), or "X ч" for whole. */
+function formatSleepDuration(hours: number): string {
+  if (hours <= 0) return "0 ч";
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (m <= 0) return `${h} ч`;
+  return `${h} ч ${m} мин`;
+}
+
 const NutritionProgressBar = React.memo(function NutritionProgressBar({
   current,
   goal,
@@ -1576,7 +1585,7 @@ export function DashboardScreen({
               {(wellnessToday || athleteProfile?.weight_kg != null || wellnessToday?.weight_kg != null) ? (
                 <>
                   <Text style={[styles.wellnessMetricsLine, { marginTop: 8 }]} numberOfLines={2}>
-                    {wellnessToday?.sleep_hours != null ? `Сон\u00A0${wellnessToday.sleep_hours}\u00A0ч` : "Сон —"}
+                    {wellnessToday?.sleep_hours != null ? `Сон\u00A0${formatSleepDuration(wellnessToday.sleep_hours)}` : "Сон —"}
                     {wellnessToday?.rhr != null ? ` · RHR\u00A0${wellnessToday.rhr}` : " · RHR —"}
                     {wellnessToday?.hrv != null ? ` · HRV\u00A0${wellnessToday.hrv}` : " · HRV —"}
                     {(wellnessToday?.weight_kg ?? athleteProfile?.weight_kg) != null
@@ -1627,10 +1636,20 @@ export function DashboardScreen({
                 {combinedSleepHistory.slice(0, 7).map((entry) => (
                   <View key={entry.source === "photo" && entry.extraction ? `photo-${entry.extraction.id}` : `wellness-${entry.date}`}>
                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
-                      <Text style={styles.sleepHistoryRowText}>
-                        {formatSleepHistoryDate(entry.date)} · {entry.hours} ч
-                        {entry.source === "manual" ? ` (${t("wellness.historyManual")})` : ""}
-                      </Text>
+                      <View>
+                        <Text style={styles.sleepHistoryRowText}>
+                          {formatSleepHistoryDate(entry.date)} · {formatSleepDuration(entry.hours)}
+                          {entry.source === "manual" ? ` (${t("wellness.historyManual")})` : ""}
+                        </Text>
+                        {entry.source === "photo" && entry.extraction && (entry.extraction.quality_score != null || (entry.extraction.actual_sleep_hours != null && entry.extraction.sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours ?? 0) - (entry.extraction.sleep_hours ?? 0)) > 0.01)) ? (
+                          <Text style={[styles.hint, { marginTop: 2, fontSize: 12 }]}>
+                            {entry.extraction.sleep_hours != null && entry.extraction.actual_sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours - entry.extraction.sleep_hours)) > 0.01
+                              ? `Всего: ${formatSleepDuration(entry.extraction.sleep_hours)}`
+                              : ""}
+                            {entry.extraction.quality_score != null ? `${entry.extraction.sleep_hours != null && entry.extraction.actual_sleep_hours != null && Math.abs((entry.extraction.actual_sleep_hours - entry.extraction.sleep_hours)) > 0.01 ? " · " : ""}${Math.round(entry.extraction.quality_score)}` : ""}
+                          </Text>
+                        ) : null}
+                      </View>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         {entry.source === "photo" && entry.extraction?.can_reanalyze && sleepReanalyzeExtId !== entry.extraction.id ? (
                           <TouchableOpacity

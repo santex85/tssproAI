@@ -15,6 +15,32 @@ from app.schemas.sleep_extraction import SleepExtractionResult
 from app.services.gemini_sleep_parser import extract_sleep_data
 
 
+def _normalize_sleep_result(result: SleepExtractionResult) -> SleepExtractionResult:
+    """Merge hours + minutes into decimal hours so 6 + 31 min → 6.52. Does not overwrite if already decimal."""
+    updates: dict[str, Any] = {}
+    h = result.sleep_hours
+    m = result.sleep_minutes
+    if h is not None and m is not None:
+        try:
+            updates["sleep_hours"] = round(float(h) + m / 60.0, 2)
+        except (TypeError, ValueError):
+            pass
+    elif m is not None and h is None:
+        updates["sleep_hours"] = round(m / 60.0, 2)
+    ah = result.actual_sleep_hours
+    am = result.actual_sleep_minutes
+    if ah is not None and am is not None:
+        try:
+            updates["actual_sleep_hours"] = round(float(ah) + am / 60.0, 2)
+        except (TypeError, ValueError):
+            pass
+    elif am is not None and ah is None:
+        updates["actual_sleep_hours"] = round(am / 60.0, 2)
+    if not updates:
+        return result
+    return result.model_copy(update=updates)
+
+
 def _payload_for_storage(result: SleepExtractionResult) -> dict[str, Any]:
     """Словарь для сохранения в БД: только поля схемы, в том числе null."""
     raw = result.model_dump(mode="json")
@@ -120,6 +146,7 @@ async def save_sleep_result(
     Save already-extracted sleep result to DB (no Gemini call).
     Returns (record, extracted_data) for API response.
     """
+    result = _normalize_sleep_result(result)
     stored = _payload_for_storage(result)
     record = SleepExtraction(
         user_id=user_id,
@@ -140,6 +167,7 @@ async def update_sleep_extraction_result(
     result: SleepExtractionResult,
 ) -> dict:
     """Update existing SleepExtraction with new result and refresh wellness cache. Returns extracted_data for response."""
+    result = _normalize_sleep_result(result)
     stored = _payload_for_storage(result)
     record.extracted_data = json.dumps(stored, ensure_ascii=False)
     await _upsert_sleep_into_wellness_cache(session, user_id, result)

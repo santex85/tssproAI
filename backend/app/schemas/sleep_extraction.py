@@ -114,6 +114,25 @@ class SleepExtractionResult(BaseModel):
     source_app: str | None = Field(None, max_length=256)
     raw_notes: str | None = Field(None, max_length=2048)
 
+    # Blood oxygen ("Кислород в крови") from screenshot if visible
+    spo2_avg: float | None = Field(None, ge=0, le=100, description="Average SpO2 %")
+    spo2_min: float | None = Field(None, ge=0, le=100, description="Minimum SpO2 %")
+    spo2_max: float | None = Field(None, ge=0, le=100, description="Maximum SpO2 %")
+
+    @field_validator("spo2_avg", "spo2_min", "spo2_max", mode="before")
+    @classmethod
+    def coerce_spo2(cls, v: object) -> float | None:
+        if v is None:
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            try:
+                return float(v.strip())
+            except ValueError:
+                return None
+        return None
+
 
 class SleepReanalyzeRequest(BaseModel):
     """Body for POST /photo/sleep-extractions/{id}/reanalyze (premium)."""

@@ -623,6 +623,7 @@ export interface SleepExtractionSummary {
   sleep_date?: string | null;
   sleep_hours?: number | null;
   actual_sleep_hours?: number | null;
+  quality_score?: number | null;
   can_reanalyze?: boolean;
 }
 
