@@ -310,6 +310,7 @@ function OverviewSection({
   colors: Record<string, string>;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t } = useTranslation();
   if (!overview) {
     return (
       <Text style={[styles.noData, { color: colors.textMuted }]}>{t("analytics.noData")}</Text>
@@ -377,6 +378,7 @@ function SleepSection({
   styles: ReturnType<typeof makeStyles>;
   screenWidth: number;
 }) {
+  const { t } = useTranslation();
   if (!data?.items?.length) {
     return (
       <Text style={[styles.noData, { color: colors.textMuted }]}>{t("analytics.noData")}</Text>
@@ -425,6 +427,7 @@ function TrainingSection({
   styles: ReturnType<typeof makeStyles>;
   screenWidth: number;
 }) {
+  const { t } = useTranslation();
   if (!data) {
     return (
       <Text style={[styles.noData, { color: colors.textMuted }]}>{t("analytics.noData")}</Text>
@@ -502,6 +505,7 @@ function NutritionSection({
   styles: ReturnType<typeof makeStyles>;
   screenWidth: number;
 }) {
+  const { t } = useTranslation();
   if (!data?.items?.length) {
     return (
       <Text style={[styles.noData, { color: colors.textMuted }]}>{t("analytics.noData")}</Text>
