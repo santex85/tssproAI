@@ -75,9 +75,10 @@ function addDays(isoDate: string, days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function formatNavDate(isoDate: string): string {
+function formatNavDate(isoDate: string, locale: "ru" | "en"): string {
   const d = new Date(isoDate + "T12:00:00");
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  const lang = locale === "ru" ? "ru-RU" : "en-US";
+  return d.toLocaleDateString(lang, { day: "numeric", month: "short" });
 }
 
 function formatEventDate(isoDate: string | undefined): string {
@@ -98,13 +99,14 @@ function formatDuration(sec: number | undefined): string {
   return `${m}m`;
 }
 
-/** Format sleep hours as "X ч Y мин" for decimals (e.g. 6.52 → "6 ч 31 мин"), or "X ч" for whole. */
-function formatSleepDuration(hours: number): string {
-  if (hours <= 0) return "0 ч";
+function formatSleepDuration(hours: number, t: (key: string) => string): string {
+  const hUnit = t("units.hourShort");
+  const mUnit = t("units.minuteShort");
+  if (hours <= 0) return `0 ${hUnit}`;
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
-  if (m <= 0) return `${h} ч`;
-  return `${h} ч ${m} мин`;
+  if (m <= 0) return `${h} ${hUnit}`;
+  return `${h} ${hUnit} ${m} ${mUnit}`;
 }
 
 const NutritionProgressBar = React.memo(function NutritionProgressBar({
@@ -370,11 +372,11 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
                 {reanalyzing ? (
                   <ActivityIndicator size="small" color="#0f172a" />
                 ) : (
-                  <Text style={styles.modalBtnSaveText}>Пересчитать</Text>
+                  <Text style={styles.modalBtnSaveText}>{t("nutrition.recalculate")}</Text>
                 )}
               </TouchableOpacity>
               <Text style={[styles.modalLabel, { marginTop: 6, fontSize: 12, opacity: 0.8 }]}>
-                Пересчёт макросов по текущему названию и порции
+                {t("nutrition.recalculateHint")}
               </Text>
             </View>
           ) : null}
@@ -485,7 +487,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
       <Pressable style={[styles.modalBackdrop, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]} onPress={onClose}>
         <Pressable style={[styles.modalBox, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]} onPress={(e) => e.stopPropagation()}>
           <Text style={styles.cardTitle}>{t("dashboard.wellnessModalTitle").replace("{date}", date)}</Text>
-          <Text style={styles.hint}>Данные учитываются ИИ при анализе и в чате.</Text>
+          <Text style={styles.hint}>{t("wellness.disclaimer")}</Text>
           <TextInput
             style={styles.modalInput}
             placeholder={t("wellness.sleepPlaceholder")}
@@ -1349,7 +1351,7 @@ export function DashboardScreen({
                 onPress={() => { onOpenAthleteProfile(); setMenuVisible(false); }}
               >
                 <Ionicons name="person-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
-                <Text style={styles.menuItemText}>Профиль атлета</Text>
+                <Text style={styles.menuItemText}>{t("athleteProfile.title")}</Text>
                 <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
               </Pressable>
             ) : null}
@@ -1358,7 +1360,7 @@ export function DashboardScreen({
               onPress={() => { onOpenChat(); setMenuVisible(false); }}
             >
               <Ionicons name="chatbubble-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
-              <Text style={styles.menuItemText}>Открыть чат AI-тренера</Text>
+              <Text style={styles.menuItemText}>{t("chat.openCoachChat")}</Text>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
             </Pressable>
             {onOpenPricing ? (
@@ -1470,19 +1472,19 @@ export function DashboardScreen({
                   onPress={() => setNutritionDateAndLoad(addDays(nutritionDate, -1))}
                   style={styles.dateNavBtn}
                 >
-                  <Text style={styles.dateNavText}>{formatNavDate(addDays(nutritionDate, -1))}</Text>
+                  <Text style={styles.dateNavText}>{formatNavDate(addDays(nutritionDate, -1), locale)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setNutritionDateAndLoad(today)}
                   style={[styles.dateNavBtn, nutritionDate === today && styles.dateNavBtnActive]}
                 >
-                  <Text style={[styles.dateNavText, nutritionDate === today && styles.dateNavTextActive]}>{formatNavDate(nutritionDate)}</Text>
+                  <Text style={[styles.dateNavText, nutritionDate === today && styles.dateNavTextActive]}>{formatNavDate(nutritionDate, locale)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setNutritionDateAndLoad(addDays(nutritionDate, 1))}
                   style={styles.dateNavBtn}
                 >
-                  <Text style={styles.dateNavText}>{formatNavDate(addDays(nutritionDate, 1))}</Text>
+                  <Text style={styles.dateNavText}>{formatNavDate(addDays(nutritionDate, 1), locale)}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1526,7 +1528,7 @@ export function DashboardScreen({
                     key={entry.id}
                     renderRightActions={() => (
                       <TouchableOpacity style={styles.deleteAction} onPress={() => handleQuickDelete(entry)}>
-                        <Text style={styles.deleteActionText}>Удалить</Text>
+                        <Text style={styles.deleteActionText}>{t("common.delete")}</Text>
                       </TouchableOpacity>
                     )}
                   >
@@ -1783,12 +1785,16 @@ export function DashboardScreen({
             ) : (
               <Text style={[styles.placeholder, styles.fitnessPlaceholder, { color: colors.textMuted, marginBottom: 12 }]}>{t("fitness.placeholder")}</Text>
             )}
-            <View style={styles.fitnessHeaderRow}>
-              <Text style={[styles.fitnessHint, { color: colors.textMuted, marginBottom: 0 }]}>{t("fitness.hint")}</Text>
-              <View style={styles.fitnessActionsRow}>
+            <View style={styles.fitnessFooter}>
+              <Text style={[styles.fitnessHint, { color: colors.textMuted, marginBottom: 10 }]}>{t("fitness.hint")}</Text>
+              <View style={styles.fitnessButtonsRow}>
                 {onOpenIntervals ? (
-                  <TouchableOpacity onPress={onOpenIntervals} style={styles.fitnessActionLink}>
-                    <Text style={[styles.fitnessActionPrimary, { color: colors.primary }]}>Intervals.icu</Text>
+                  <TouchableOpacity
+                    onPress={onOpenIntervals}
+                    style={[styles.fitnessBtnBase, styles.fitnessBtnOutline]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.fitnessBtnOutlineText, { color: colors.primary }]}>Intervals.icu</Text>
                   </TouchableOpacity>
                 ) : null}
                 {onSyncIntervals ? (
@@ -1811,12 +1817,13 @@ export function DashboardScreen({
                       }
                     }}
                     disabled={intervalsSyncLoading}
-                    style={[styles.fitnessActionSync, intervalsSyncLoading && styles.fitnessActionSyncDisabled]}
+                    style={[styles.fitnessBtnBase, styles.fitnessBtnPrimary, intervalsSyncLoading && styles.fitnessBtnDisabled]}
+                    accessibilityRole="button"
                   >
                     {intervalsSyncLoading ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
+                      <ActivityIndicator size="small" color="#0f172a" />
                     ) : (
-                      <Text style={[styles.fitnessActionSecondary, { color: colors.primary }]}>{t("fitness.sync")}</Text>
+                      <Text style={styles.fitnessBtnPrimaryText}>{t("fitness.sync")}</Text>
                     )}
                   </TouchableOpacity>
                 ) : null}
@@ -2068,13 +2075,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#334155",
   },
   sleepReminderBtnText: { fontSize: 14, color: "#38bdf8", fontWeight: "600" },
-  fitnessHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  fitnessActionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-  fitnessActionLink: { paddingVertical: 4, paddingRight: 4 },
-  fitnessActionPrimary: { fontSize: 14, fontWeight: "600" },
-  fitnessActionSync: { paddingVertical: 4, paddingHorizontal: 8, minHeight: 28, justifyContent: "center" },
-  fitnessActionSyncDisabled: { opacity: 0.7 },
-  fitnessActionSecondary: { fontSize: 14 },
+  fitnessFooter: { marginTop: 2 },
+  fitnessButtonsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" },
+  fitnessBtnBase: {
+    minHeight: 36,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexGrow: 1,
+    flexBasis: 160,
+    maxWidth: 240,
+  },
+  fitnessBtnOutline: {
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "transparent",
+  },
+  fitnessBtnOutlineText: { fontSize: 14, fontWeight: "700", textAlign: "center" },
+  fitnessBtnPrimary: {
+    backgroundColor: "#38bdf8",
+  },
+  fitnessBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: "#0f172a", textAlign: "center" },
+  fitnessBtnDisabled: { opacity: 0.7 },
   fitnessHint: { fontSize: 12, marginTop: 2, marginBottom: 10 },
   fitnessMetricsBlock: { marginTop: 2 },
   fitnessMetricsLine: { fontSize: 24, fontWeight: "700", lineHeight: 32, letterSpacing: 0.5 },
