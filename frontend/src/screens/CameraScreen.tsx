@@ -27,6 +27,7 @@ import {
   type WellnessPhotoResult,
 } from "../api/client";
 import { useTranslation } from "../i18n";
+import { useLoadingStages } from "../hooks/useLoadingStages";
 import { devLog, getLogs, clearLogs, subscribe, isDevLogEnabled, type LogEntry } from "../utils/devLog";
 import { PremiumGateModal } from "../components/PremiumGateModal";
 
@@ -109,6 +110,7 @@ export function CameraScreen({
   onOpenPricing?: () => void;
 }) {
   const { t } = useTranslation();
+  const loadingStageIndex = useLoadingStages(loading, 3, 1600);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
@@ -445,7 +447,9 @@ export function CameraScreen({
         {loading && (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color="#38bdf8" />
-            <Text style={styles.hint}>{t("camera.analysisHint")}</Text>
+            <Text style={styles.hint}>
+              {[t("camera.stageUpload"), t("camera.stageDetectType"), t("camera.stageAnalyze")][loadingStageIndex]}
+            </Text>
           </View>
         )}
 

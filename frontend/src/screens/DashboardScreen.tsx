@@ -55,6 +55,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme";
 import { useTranslation } from "../i18n";
+import { useLoadingStages } from "../hooks/useLoadingStages";
 import { PremiumGateModal } from "../components/PremiumGateModal";
 
 const CALORIE_GOAL = 2200;
@@ -545,6 +546,8 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
+  const loadingStageIndex = useLoadingStages(analyzing, 3, 1600);
   const [dateStr, setDateStr] = useState(defaultDate);
   const [name, setName] = useState("");
   const [type, setType] = useState("Run");
@@ -647,7 +650,11 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
                {analyzing ? <ActivityIndicator size="small" color="#38bdf8" /> : <Text style={styles.outlineButtonText}>📷 {t("dashboard.scanPhoto")}</Text>}
             </TouchableOpacity>
           </View>
-          
+          {analyzing ? (
+            <Text style={[styles.modalLabel, { marginBottom: 8 }]}>
+              {[t("camera.stageUpload"), t("camera.stageDetectType"), t("camera.stageAnalyze")][loadingStageIndex]}
+            </Text>
+          ) : null}
           <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.modalLabel}>{t("dashboard.addWorkoutDateLabel")}</Text>
             <TextInput

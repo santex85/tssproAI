@@ -32,6 +32,7 @@ import {
 } from "../api/client";
 import { useTheme } from "../theme";
 import { useTranslation } from "../i18n";
+import { useLoadingStages } from "../hooks/useLoadingStages";
 import { Ionicons } from "@expo/vector-icons";
 import { PremiumGateModal } from "../components/PremiumGateModal";
 import type { AuthUser } from "../api/client";
@@ -72,6 +73,7 @@ export function ChatScreen({
   const [saveWorkout, setSaveWorkout] = useState(false);
   const isPremium = !!user?.is_premium;
   const [loading, setLoading] = useState(false);
+  const loadingStageIndex = useLoadingStages(loading, 3, 1600);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameThreadId, setRenameThreadId] = useState<number | null>(null);
@@ -460,6 +462,16 @@ export function ChatScreen({
             ) : null}
           </View>
         )}
+        ListFooterComponent={
+          loading ? (
+            <View style={[styles.bubble, styles.assistantBubble, styles.loadingBubble]}>
+              <ActivityIndicator size="small" color={colors.primary ?? "#38bdf8"} style={styles.loadingBubbleSpinner} />
+              <Text style={styles.bubbleText}>
+                {[t("chat.stageProcessing"), t("chat.stageContext"), t("chat.stageWriting")][loadingStageIndex]}
+              </Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Text style={styles.placeholder}>{t("chat.emptyPrompt")}</Text>
@@ -658,6 +670,8 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: "85%", padding: 12, borderRadius: 16, marginBottom: 8 },
   userBubble: { alignSelf: "flex-end", backgroundColor: "#38bdf8" },
   assistantBubble: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", borderRadius: 24 },
+  loadingBubble: { flexDirection: "row", alignItems: "center", gap: 10 },
+  loadingBubbleSpinner: { marginRight: 0 },
   bubbleText: { fontSize: 15, color: "#e2e8f0" },
   bubbleTime: { fontSize: 11, color: "#94a3b8", marginTop: 4 },
   emptyWrap: { paddingHorizontal: 16 },
