@@ -503,11 +503,23 @@ export function ChatScreen({
       <View style={[styles.inputRow, { backgroundColor: colors.glassBg, borderTopColor: colors.glassBorder }, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
         {isPremium ? (
           <>
-            <TouchableOpacity onPress={pickFitFile} style={styles.attachBtn} disabled={loading || loadingHistory}>
-              <Text style={styles.attachBtnText}>FIT</Text>
+            <TouchableOpacity
+              onPress={pickFitFile}
+              style={styles.attachBtn}
+              disabled={loading || loadingHistory}
+              accessibilityLabel="FIT"
+              accessibilityRole="button"
+            >
+              <Ionicons name="document-attach-outline" size={22} color={colors.primary ?? "#38bdf8"} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={pickImage} style={styles.attachBtn} disabled={loading || loadingHistory}>
-              <Text style={styles.attachBtnText}>{t("chat.attachPhotoShort")}</Text>
+            <TouchableOpacity
+              onPress={pickImage}
+              style={styles.attachBtn}
+              disabled={loading || loadingHistory}
+              accessibilityLabel={t("chat.attachPhotoShort")}
+              accessibilityRole="button"
+            >
+              <Ionicons name="camera-outline" size={22} color={colors.primary ?? "#38bdf8"} />
             </TouchableOpacity>
           </>
         ) : null}
@@ -525,8 +537,10 @@ export function ChatScreen({
           style={[styles.sendBtn, { backgroundColor: colors.primary }, (loading || loadingHistory) && styles.sendBtnDisabled]}
           onPress={() => send(false)}
           disabled={loading || loadingHistory || (!input.trim() && !attachedFit && !attachedImage)}
+          accessibilityLabel={t("chat.send")}
+          accessibilityRole="button"
         >
-          <Text style={[styles.sendBtnText, { color: colors.primaryText }]}>{t("chat.send")}</Text>
+          <Ionicons name="send" size={20} color={colors.primaryText ?? "#0f172a"} />
         </TouchableOpacity>
       </View>
       <TouchableOpacity

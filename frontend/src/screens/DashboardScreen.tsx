@@ -1591,7 +1591,7 @@ export function DashboardScreen({
               <Text style={[styles.hint, styles.disclaimer]}>{t("wellness.disclaimer")}</Text>
               {(wellnessToday || athleteProfile?.weight_kg != null || wellnessToday?.weight_kg != null) ? (
                 <>
-                  <Text style={[styles.wellnessMetricsLine, { marginTop: 8 }]} numberOfLines={2}>
+                  <Text style={[styles.wellnessMetricsLine, { marginTop: 8 }]}>
                     {wellnessToday?.sleep_hours != null ? `${t("wellness.sleep")}\u00A0${formatSleepDuration(wellnessToday.sleep_hours, t)}` : `${t("wellness.sleep")} —`}
                     {wellnessToday?.rhr != null ? ` · RHR\u00A0${wellnessToday.rhr}` : " · RHR —"}
                     {wellnessToday?.hrv != null ? ` · HRV\u00A0${wellnessToday.hrv}` : " · HRV —"}
