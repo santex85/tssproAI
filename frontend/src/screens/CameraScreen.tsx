@@ -18,6 +18,7 @@ import {
   uploadPhotoForAnalysis,
   createNutritionEntry,
   reanalyzeNutritionEntry,
+  analyzeNutritionFromText,
   saveSleepFromPreview,
   createOrUpdateWellness,
   type NutritionResult,
@@ -128,6 +129,7 @@ export function CameraScreen({
   } | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [premiumGateVisible, setPremiumGateVisible] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   const isPreview = (): boolean => {
     if (!photoResult) return false;
@@ -360,6 +362,46 @@ export function CameraScreen({
     setEditedFood(null);
   };
 
+  const handleReanalyze = async () => {
+    if (!editedFood || photoResult?.type !== "food") return;
+    const name = editedFood.name.trim();
+    if (!name) {
+      Alert.alert(t("common.error"), t("camera.reanalyzeNameRequired"));
+      return;
+    }
+    setReanalyzing(true);
+    try {
+      const result = await analyzeNutritionFromText({
+        name,
+        portion_grams: editedFood.portion_grams,
+      });
+      setEditedFood({
+        name: result.name,
+        portion_grams: result.portion_grams,
+        calories: result.calories,
+        protein_g: result.protein_g,
+        fat_g: result.fat_g,
+        carbs_g: result.carbs_g,
+      });
+      setPhotoResult((prev) =>
+        prev && prev.type === "food"
+          ? { ...prev, food: { ...prev.food, ...result, extended_nutrients: result.extended_nutrients ?? prev.food.extended_nutrients } }
+          : prev
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("403") || msg.includes("Premium") || msg.includes("premium")) {
+        onOpenPricing?.();
+        setPremiumGateVisible(true);
+      } else {
+        Alert.alert(t("common.error"), msg || t("dashboard.recalcFailed"));
+      }
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
   const MEAL_TYPES = [
     { value: "breakfast", label: t("camera.mealBreakfast") },
     { value: "lunch", label: t("camera.mealLunch") },
@@ -463,6 +505,17 @@ export function CameraScreen({
                     </TouchableOpacity>
                   ))}
                 </View>
+                <TouchableOpacity
+                  style={[styles.reanalyzeBtn, reanalyzing && styles.reanalyzeBtnDisabled]}
+                  onPress={handleReanalyze}
+                  disabled={reanalyzing || saving}
+                >
+                  {reanalyzing ? (
+                    <ActivityIndicator size="small" color="#0f172a" />
+                  ) : (
+                    <Text style={styles.reanalyzeBtnText}>{t("camera.reanalyze")}</Text>
+                  )}
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -651,6 +704,9 @@ const styles = StyleSheet.create({
   mealTypeBtnActive: { backgroundColor: "#38bdf8" },
   mealTypeBtnText: { fontSize: 12, color: "#94a3b8" },
   mealTypeBtnTextActive: { fontSize: 12, color: "#0f172a", fontWeight: "600" },
+  reanalyzeBtn: { marginTop: 12, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "#1e293b", alignItems: "center" },
+  reanalyzeBtnDisabled: { opacity: 0.7 },
+  reanalyzeBtnText: { fontSize: 14, color: "#94a3b8", fontWeight: "500" },
   micronutrientsBlock: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
   microRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   microLabel: { fontSize: 12, color: "#94a3b8" },

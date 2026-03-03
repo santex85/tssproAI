@@ -117,6 +117,55 @@ async def analyze_nutrition(
 
 
 @router.post(
+    "/analyze-from-text",
+    response_model=NutritionAnalyzeResponse,
+    summary="Recalculate macros from dish name and portion (no image). Premium only.",
+    responses={
+        401: {"description": "Not authenticated"},
+        403: {"description": "Premium required"},
+        422: {"description": "AI could not analyze"},
+        502: {"description": "AI service unavailable"},
+    },
+)
+async def analyze_nutrition_from_text(
+    user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
+    body: ReanalyzeRequest,
+) -> NutritionAnalyzeResponse:
+    """Return recalculated macros for given name and portion_grams. Does not create or update any entry. Premium only."""
+    if not user.is_premium:
+        raise HTTPException(status_code=403, detail="Premium required for re-analysis.")
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required.")
+    portion = body.portion_grams if body.portion_grams is not None else 0.0
+    correction = (body.correction or "").strip()
+    try:
+        food_result, extended_nutrients = await analyze_food_from_text(
+            name=name,
+            portion_grams=portion,
+            correction=correction,
+            extended=True,
+            locale=locale,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        logging.exception("analyze_from_text failed for name=%s", name)
+        raise HTTPException(status_code=502, detail="AI analysis failed. Please try again.")
+    return NutritionAnalyzeResponse(
+        id=0,
+        name=food_result.name,
+        portion_grams=food_result.portion_grams,
+        calories=food_result.calories,
+        protein_g=food_result.protein_g,
+        fat_g=food_result.fat_g,
+        carbs_g=food_result.carbs_g,
+        extended_nutrients=extended_nutrients if user.is_premium else None,
+    )
+
+
+@router.post(
     "/entries",
     response_model=NutritionDayEntry,
     summary="Create food log entry",

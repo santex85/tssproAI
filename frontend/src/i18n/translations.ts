@@ -323,6 +323,8 @@ export const ru = {
     done: "Готово",
     takePhoto: "Сделать фото",
     selectFromGallery: "Выбрать из галереи",
+    reanalyze: "Повторный анализ",
+    reanalyzeNameRequired: "Укажите название блюда для перерасчёта.",
   },
   athleteProfile: {
     title: "Профиль атлета",
@@ -707,6 +709,8 @@ export const en = {
     done: "Done",
     takePhoto: "Take photo",
     selectFromGallery: "Select from gallery",
+    reanalyze: "Re-analyze",
+    reanalyzeNameRequired: "Enter dish name to recalculate macros.",
   },
   athleteProfile: {
     title: "Athlete profile",

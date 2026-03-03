@@ -579,6 +579,17 @@ export async function reanalyzeNutritionEntry(
   });
 }
 
+export async function analyzeNutritionFromText(payload: {
+  name: string;
+  portion_grams?: number;
+  correction?: string;
+}): Promise<NutritionResult> {
+  return api<NutritionResult>("/api/v1/nutrition/analyze-from-text", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export type CreateNutritionEntryPayload = {
   name: string;
   portion_grams: number;
