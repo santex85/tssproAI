@@ -464,8 +464,9 @@ export async function getWorkouts(
   return api<PaginatedResponse<WorkoutItem>>(`/api/v1/workouts?${params}`);
 }
 
-export async function getWorkoutFitness(): Promise<WorkoutFitness | null> {
-  return api<WorkoutFitness | null>("/api/v1/workouts/fitness");
+export async function getWorkoutFitness(date?: string): Promise<WorkoutFitness | null> {
+  const path = date ? `/api/v1/workouts/fitness?date=${encodeURIComponent(date)}` : "/api/v1/workouts/fitness";
+  return api<WorkoutFitness | null>(path);
 }
 
 export type WorkoutCreatePayload = {

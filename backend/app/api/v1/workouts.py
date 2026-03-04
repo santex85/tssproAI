@@ -381,18 +381,30 @@ async def get_fitness(
     session: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     response: Response,
+    date_param: Annotated[str | None, Query(description="YYYY-MM-DD, client's 'today' for timezone; optional")] = None,
 ) -> dict | None:
     """Return CTL/ATL/TSB: from Intervals.icu (wellness_cache) when linked, else from our workout-based calculation."""
     response.headers["Cache-Control"] = "no-store"
     uid = user.id
-    # If Intervals is linked, use synced wellness (CTL/ATL/TSB from Intervals). Prefer today's row so numbers match Intervals UI.
+    server_today = date.today()
+    if date_param is not None:
+        try:
+            target = date.fromisoformat(date_param)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        lo, hi = server_today - timedelta(days=1), server_today + timedelta(days=1)
+        if not (lo <= target <= hi):
+            raise HTTPException(status_code=400, detail="Date must be within yesterday and tomorrow (server UTC).")
+        target_date = target
+    else:
+        target_date = server_today
+    # If Intervals is linked, use synced wellness (CTL/ATL/TSB from Intervals). Prefer target date row.
     r = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == uid))
     if r.scalar_one_or_none():
-        today = date.today()
         w_today = await session.execute(
             select(WellnessCache).where(
                 WellnessCache.user_id == uid,
-                WellnessCache.date == today,
+                WellnessCache.date == target_date,
                 WellnessCache.ctl.isnot(None),
             )
         )
@@ -416,8 +428,8 @@ async def get_fitness(
                 "date": row.date.isoformat(),
             }
         # Intervals linked but no wellness row with ctl/atl (e.g. Intervals didn't send load for that day) — use our workouts
-        return await compute_fitness_from_workouts(session, uid)
-    return await compute_fitness_from_workouts(session, uid)
+        return await compute_fitness_from_workouts(session, uid, as_of=target_date)
+    return await compute_fitness_from_workouts(session, uid, as_of=target_date)
 
 
 def _estimate_tss_from_fit(

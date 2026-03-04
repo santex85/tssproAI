@@ -1166,7 +1166,7 @@ export function DashboardScreen({
         }),
         getAthleteProfile().catch(() => null),
         getWorkouts(activitiesStart, today).then((r) => r.items).catch(() => []),
-        getWorkoutFitness().catch(() => null),
+        getWorkoutFitness(today).catch(() => null),
         (async (): Promise<SleepExtractionSummary[]> => {
           try {
             return await getSleepExtractions(addDays(today, -14), today);
