@@ -17,6 +17,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "user_weekly_summaries" in inspector.get_table_names():
+        return  # table already exists (e.g. 027 was applied when it had down_revision=025)
     op.create_table(
         "user_weekly_summaries",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -43,6 +47,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "user_weekly_summaries" not in inspector.get_table_names():
+        return
     op.drop_index("ix_user_weekly_summaries_week_start_date", table_name="user_weekly_summaries")
     op.drop_index("ix_user_weekly_summaries_user_id", table_name="user_weekly_summaries")
     op.drop_table("user_weekly_summaries")
