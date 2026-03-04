@@ -19,6 +19,7 @@ RUN --mount=type=cache,target=/app/node_modules/.cache \
 
 # Stage 2: serve with nginx
 FROM nginx:alpine
+RUN apk add --no-cache wget
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
