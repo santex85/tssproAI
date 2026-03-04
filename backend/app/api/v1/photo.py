@@ -458,10 +458,21 @@ async def list_sleep_extractions(
             sh = round(data["sleep_minutes"] / 60.0, 2)
         if ah is None and data.get("actual_sleep_minutes") is not None:
             ah = round(data["actual_sleep_minutes"] / 60.0, 2)
+        created_date = created_at.date() if created_at else None
+        data_date_str = data.get("date")
+        if created_date is not None and data_date_str and len(str(data_date_str).strip()) >= 10:
+            try:
+                parsed = date.fromisoformat(str(data_date_str).strip()[:10])
+                if parsed.year != created_date.year:
+                    data_date_str = created_date.isoformat()
+            except (ValueError, TypeError):
+                data_date_str = created_date.isoformat()
+        elif created_date is not None and (not data_date_str or not str(data_date_str).strip()):
+            data_date_str = created_date.isoformat()
         out.append({
             "id": ext_id,
             "created_at": created_at.isoformat() if created_at else "",
-            "sleep_date": data.get("date"),
+            "sleep_date": data_date_str,
             "sleep_hours": sh,
             "actual_sleep_hours": ah,
             "quality_score": data.get("quality_score"),

@@ -1238,8 +1238,15 @@ export function DashboardScreen({
       if (!dateKey) return;
       byDate.set(dateKey, { date: dateKey, hours: h, source: "manual" });
     });
+    const currentYear = new Date().getFullYear();
     effectiveSleepExtractions.forEach((ext) => {
-      const raw = ext.sleep_date ?? ext.created_at?.slice(0, 10) ?? "";
+      let raw = ext.sleep_date ?? ext.created_at?.slice(0, 10) ?? "";
+      if (raw.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(raw)) {
+        const year = parseInt(raw.slice(0, 4), 10);
+        if (!Number.isNaN(year) && year !== currentYear && ext.created_at) {
+          raw = ext.created_at.slice(0, 10);
+        }
+      }
       const dateKey = normalizeSleepDateKey(raw);
       if (!dateKey) return;
       const hours = ext.actual_sleep_hours ?? ext.sleep_hours ?? 0;

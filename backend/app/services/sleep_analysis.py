@@ -48,27 +48,38 @@ def _payload_for_storage(result: SleepExtractionResult) -> dict[str, Any]:
 
 
 def _sleep_date_from_result(result: SleepExtractionResult) -> date_cls:
+    today = date_cls.today()
     if not result.date:
-        return date_cls.today()
+        return today
     s = str(result.date).strip()
+    parsed: date_cls | None = None
     # ISO YYYY-MM-DD
     if len(s) >= 10 and s[4] == "-" and s[7] == "-":
         try:
-            return date_cls.fromisoformat(s[:10])
+            parsed = date_cls.fromisoformat(s[:10])
         except ValueError:
             pass
-    # D/M or D/M/YYYY (e.g. "26/2" or "26/2/2026")
-    parts = s.replace("-", "/").split("/")
-    if len(parts) >= 2:
+    if parsed is None:
+        # D/M or D/M/YYYY (e.g. "26/2" or "26/2/2026")
+        parts = s.replace("-", "/").split("/")
+        if len(parts) >= 2:
+            try:
+                day = int(parts[0])
+                month = int(parts[1])
+                year = int(parts[2]) if len(parts) >= 3 else today.year
+                if 1 <= month <= 12 and 1 <= day <= 31 and 2000 <= year <= 2100:
+                    parsed = date_cls(year, month, day)
+            except (ValueError, IndexError):
+                pass
+    if parsed is None:
+        return today
+    # If year is wrong (e.g. 2024 instead of 2026), use current year so "today" and history display correctly
+    if parsed.year != today.year:
         try:
-            day = int(parts[0])
-            month = int(parts[1])
-            year = int(parts[2]) if len(parts) >= 3 else date_cls.today().year
-            if 1 <= month <= 12 and 1 <= day <= 31 and 2000 <= year <= 2100:
-                return date_cls(year, month, day)
-        except (ValueError, IndexError):
-            pass
-    return date_cls.today()
+            return date_cls(today.year, parsed.month, parsed.day)
+        except ValueError:
+            return today
+    return parsed
 
 
 def _sleep_hours_from_result(result: SleepExtractionResult) -> float | None:
@@ -148,6 +159,7 @@ async def save_sleep_result(
     """
     result = _normalize_sleep_result(result)
     stored = _payload_for_storage(result)
+    stored["date"] = _sleep_date_from_result(result).isoformat()
     record = SleepExtraction(
         user_id=user_id,
         extracted_data=json.dumps(stored, ensure_ascii=False),
@@ -169,6 +181,7 @@ async def update_sleep_extraction_result(
     """Update existing SleepExtraction with new result and refresh wellness cache. Returns extracted_data for response."""
     result = _normalize_sleep_result(result)
     stored = _payload_for_storage(result)
+    stored["date"] = _sleep_date_from_result(result).isoformat()
     record.extracted_data = json.dumps(stored, ensure_ascii=False)
     await _upsert_sleep_into_wellness_cache(session, user_id, result)
     await session.flush()
