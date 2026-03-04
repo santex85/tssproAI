@@ -72,8 +72,14 @@ deploy:
 
 # Только действия на сервере (без git push). Сборка образов, затем docker stack deploy (Swarm) и миграции.
 deploy-no-push:
-	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && git pull && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml st2 && sleep 25 && docker run --rm --network st2_backend-db -e DATABASE_URL=\"$$DATABASE_URL\" st2-backend:latest alembic upgrade head"
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && git pull && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml st2 && sleep 25 && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-smart_trainer}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-smart_trainer}\" && docker run --rm --network st2_backend-db -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest alembic upgrade head"
 	@echo "Деплой завершён: https://tsspro.tech"
+
+# Однократно: снять стек и удалить overlay-сети, чтобы при следующем deploy они создались с attachable: true (для docker run миграций).
+# После выполнения запустите: make deploy
+deploy-fix-networks:
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && docker stack rm st2 && echo 'Ждём снятия сервисов...' && sleep 25 && docker network rm st2_backend-db st2_frontend-backend 2>/dev/null || true"
+	@echo "Сети пересозданы. Запустите: make deploy"
 
 shell-backend:
 	docker compose exec backend sh

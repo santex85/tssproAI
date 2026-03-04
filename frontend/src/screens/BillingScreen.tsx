@@ -115,6 +115,7 @@ export function BillingScreen({
   const chatUsed = status?.chat_messages_used ?? 0;
   const showPhotoLimit = photoLimit != null && photoLimit > 0;
   const showChatLimit = chatLimit != null && chatLimit > 0;
+  const chatLimitTitleStyle = [styles.sectionTitle, styles.sectionTitleSecond, { color: colors.text }];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
@@ -167,7 +168,7 @@ export function BillingScreen({
             <Text style={[styles.unlimitedText, { color: colors.success }]}>{t("billing.unlimited")}</Text>
           )}
 
-          <Text style={[styles.sectionTitle, { color: colors.text }, styles.sectionTitleSecond}]}>
+          <Text style={chatLimitTitleStyle}>
             {t("billing.chatLimit")}
           </Text>
           {showChatLimit ? (
