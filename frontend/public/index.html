@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <meta name="theme-color" content="#1a1a2e" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- Ionicons font fallback for web (Expo vector-icons); avoids 404 on /assets/node_modules/... path -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/react-native-vector-icons@10.0.3/Fonts/Ionicons.ttf" as="font" type="font/ttf" crossorigin />
+    <style>
+      @font-face {
+        font-family: 'Ionicons';
+        src: url('https://cdn.jsdelivr.net/npm/react-native-vector-icons@10.0.3/Fonts/Ionicons.ttf') format('truetype');
+        font-display: block;
+      }
+    </style>
     <title>tssAI</title>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
