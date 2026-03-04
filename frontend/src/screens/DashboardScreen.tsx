@@ -1084,6 +1084,7 @@ export function DashboardScreen({
   } | null>(null);
   const [intervalsSyncLoading, setIntervalsSyncLoading] = useState(false);
   const [sleepExtractions, setSleepExtractions] = useState<SleepExtractionSummary[]>([]);
+  const today = getTodayLocal();
   const effectiveSleepExtractions = useMemo((): SleepExtractionSummary[] => {
     if (!lastSavedSleep) return sleepExtractions;
     const d = lastSavedSleep.extracted_data;
@@ -1132,8 +1133,6 @@ export function DashboardScreen({
     },
     ...(Platform.OS === "web" ? [{ backdropFilter: "blur(20px)" }] : []),
   ], [colors]);
-
-  const today = getTodayLocal();
 
   const loadNutritionForDate = useCallback(async (dateStr: string) => {
     setNutritionLoadError(false);
