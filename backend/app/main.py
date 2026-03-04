@@ -13,6 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from app.api.v1 import analytics, auth, athlete_profile, billing, chat, intervals, nutrition, photo, users, wellness, workouts
+from app.core.scheduler_lock import try_acquire_cron_lock
 from app.services.retention import run_recovery_reminder_job
 
 # Ensure app loggers (Intervals, sync, etc.) print to stdout so you see them in the terminal
@@ -22,6 +23,7 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logging.getLogger("app").setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 from app.config import settings
 from app.db.session import init_db
 from app.core.rate_limit import close_redis
@@ -38,6 +40,11 @@ if settings.sentry_dsn:
 
 scheduler = AsyncIOScheduler()
 
+# Distributed lock names: with multiple workers only one process runs each job.
+LOCK_ORCHESTRATOR = "orchestrator_run"
+LOCK_SLEEP_REMINDER = "sleep_reminder"
+LOCK_RECOVERY_REMINDER = "recovery_reminder"
+
 
 ORCHESTRATOR_PUSH_TITLE_BY_LOCALE = {
     "ru": "Решение на день",
@@ -47,6 +54,9 @@ ORCHESTRATOR_PUSH_TITLE_BY_LOCALE = {
 
 async def scheduled_orchestrator_run():
     """Run orchestrator (daily decision) for every user at configured hours (parallel with semaphore)."""
+    if not await try_acquire_cron_lock(LOCK_ORCHESTRATOR, ttl_seconds=600):
+        logger.info("Scheduler: orchestrator_run skipped (another worker holds the lock)")
+        return
     import asyncio
     from datetime import date
     from sqlalchemy import select
@@ -87,6 +97,9 @@ SLEEP_REMINDER_BY_LOCALE = {
 
 async def scheduled_sleep_reminder():
     """Send push reminder to users who have not entered sleep for today (runs at 9:00)."""
+    if not await try_acquire_cron_lock(LOCK_SLEEP_REMINDER, ttl_seconds=180):
+        logger.info("Scheduler: sleep_reminder skipped (another worker holds the lock)")
+        return
     from datetime import date
     from sqlalchemy import select
     from app.db.session import async_session_maker
@@ -118,6 +131,14 @@ async def scheduled_sleep_reminder():
             await send_push_to_user(session, uid, title, body)
 
 
+async def scheduled_recovery_reminder():
+    """Wrapper: acquire distributed lock then run retention recovery reminder job."""
+    if not await try_acquire_cron_lock(LOCK_RECOVERY_REMINDER, ttl_seconds=300):
+        logger.info("Scheduler: recovery_reminder skipped (another worker holds the lock)")
+        return
+    await run_recovery_reminder_job()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # TODO(next push): tighten production detection fallback (e.g., app_env=="production" OR debug==False)
@@ -135,6 +156,8 @@ async def lifespan(app: FastAPI):
         import google.generativeai as genai
         genai.configure(api_key=settings.google_gemini_api_key)
 
+    # Scheduled jobs use a Redis distributed lock so that with multiple Uvicorn/Gunicorn
+    # workers only one process runs each job (no duplicate push notifications or DB load).
     # Orchestrator: run at configured hours (e.g. 07:00 and 16:00)
     try:
         hours = [int(h.strip()) for h in settings.orchestrator_cron_hours.split(",") if h.strip()]
@@ -149,7 +172,7 @@ async def lifespan(app: FastAPI):
     # Retention: recovery reminder for users with heavy workout yesterday who didn't open chat today
     retention_hour = getattr(settings, "retention_recovery_reminder_hour", 18)
     if 0 <= retention_hour <= 23:
-        scheduler.add_job(run_recovery_reminder_job, "cron", hour=retention_hour, minute=0)
+        scheduler.add_job(scheduled_recovery_reminder, "cron", hour=retention_hour, minute=0)
 
     scheduler.start()
     yield
