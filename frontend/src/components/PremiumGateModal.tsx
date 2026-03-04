@@ -36,6 +36,7 @@ export function PremiumGateModal({
       animationType="fade"
       onRequestClose={onClose}
     >
+      {!visible ? null : (
       <Pressable style={[styles.backdrop, { backgroundColor: colors.modalBackdrop }]} onPress={onClose}>
         <Pressable style={[styles.box, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]} onPress={(e) => e.stopPropagation()}>
           <View style={[styles.iconWrap, { backgroundColor: colors.primary + "22" }]}>
@@ -59,6 +60,7 @@ export function PremiumGateModal({
           </View>
         </Pressable>
       </Pressable>
+      )}
     </Modal>
   );
 }
