@@ -110,8 +110,8 @@ export function CameraScreen({
   onOpenPricing?: () => void;
 }) {
   const { t } = useTranslation();
-  const loadingStageIndex = useLoadingStages(loading, 3, 1600);
   const [loading, setLoading] = useState(false);
+  const loadingStageIndex = useLoadingStages(loading, 3, 1600);
   const [saving, setSaving] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
   const [photoResult, setPhotoResult] = useState<
