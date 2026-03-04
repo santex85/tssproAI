@@ -474,7 +474,7 @@ export function CameraScreen({
                     <TextInput
                       style={styles.editInput}
                       value={String(editedFood.calories)}
-                      onChangeText={(t) => setEditedFood((p) => (p ? { ...p, calories: Number(t) || 0 } : null))}
+                      onChangeText={(val) => setEditedFood((p) => (p ? { ...p, calories: Number(val) || 0 } : null))}
                       keyboardType="numeric"
                       placeholder="0"
                       placeholderTextColor="#64748b"
@@ -485,7 +485,7 @@ export function CameraScreen({
                     <TextInput
                       style={styles.editInput}
                       value={String(editedFood.portion_grams)}
-                      onChangeText={(t) => setEditedFood((p) => (p ? { ...p, portion_grams: Number(t) || 0 } : null))}
+                      onChangeText={(val) => setEditedFood((p) => (p ? { ...p, portion_grams: Number(val) || 0 } : null))}
                       keyboardType="numeric"
                       placeholder="0"
                       placeholderTextColor="#64748b"
