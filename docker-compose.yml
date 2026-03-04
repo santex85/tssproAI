@@ -1,5 +1,4 @@
-name: st2
-
+# Stack name set via: docker stack deploy -c ... st2. For local compose, project name = directory or COMPOSE_PROJECT_NAME.
 services:
   postgres:
     image: postgres:16-alpine
