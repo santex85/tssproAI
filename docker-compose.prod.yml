@@ -113,6 +113,7 @@ services:
       - caddy_config:/config
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN in .env for production}
+      FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-st2_frontend}
     depends_on:
       - frontend
     restart: unless-stopped

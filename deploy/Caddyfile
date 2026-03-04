@@ -1,7 +1,7 @@
 # Production: set DOMAIN in .env (e.g. trainer.example.com).
-# Caddy will obtain a Let's Encrypt certificate and proxy to frontend.
+# FRONTEND_UPSTREAM: for docker stack deploy use st2_frontend (Swarm DNS); for compose use frontend.
 {$DOMAIN} {
-  reverse_proxy frontend:80 {
+  reverse_proxy {$FRONTEND_UPSTREAM}:80 {
     transport http {
       read_timeout 300s
       write_timeout 300s
