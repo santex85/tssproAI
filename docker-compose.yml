@@ -138,9 +138,9 @@ services:
 
 networks:
   backend-db:
-    driver: bridge
+    driver: overlay
   frontend-backend:
-    driver: bridge
+    driver: overlay
 
 volumes:
   postgres_data:
