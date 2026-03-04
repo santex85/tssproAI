@@ -301,14 +301,19 @@ async def save_sleep_from_preview(
     """
     Save previously extracted sleep data (e.g. from analyze with save=false).
     """
-    record, data = await save_sleep_result(session, user.id, body)
-    await session.commit()
-    await session.refresh(record)
-    return SleepExtractionResponse(
-        id=record.id,
-        extracted_data=data,
-        created_at=record.created_at.isoformat() if record.created_at else "",
-    )
+    try:
+        record, data = await save_sleep_result(session, user.id, body)
+        await session.commit()
+        await session.refresh(record)
+        logging.info("save_sleep_from_preview success user_id=%s record_id=%s", user.id, record.id)
+        return SleepExtractionResponse(
+            id=record.id,
+            extracted_data=data,
+            created_at=record.created_at.isoformat() if record.created_at else "",
+        )
+    except Exception as e:
+        logging.exception("save_sleep_from_preview failed user_id=%s: %s", user.id, e)
+        raise
 
 
 @router.post(

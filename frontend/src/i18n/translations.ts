@@ -338,6 +338,8 @@ export const ru = {
     selectFromGallery: "Выбрать из галереи",
     reanalyze: "Повторный анализ",
     reanalyzeNameRequired: "Укажите название блюда для перерасчёта.",
+    sleepSaveNetworkError: "Нет соединения. Данные не сохранены. Проверьте интернет и нажмите «Сохранить» снова.",
+    sleepSaveRetryHint: "Нажмите «Сохранить» ещё раз после восстановления связи.",
   },
   athleteProfile: {
     title: "Профиль атлета",
@@ -737,6 +739,8 @@ export const en = {
     selectFromGallery: "Select from gallery",
     reanalyze: "Re-analyze",
     reanalyzeNameRequired: "Enter dish name to recalculate macros.",
+    sleepSaveNetworkError: "No connection. Data was not saved. Check your internet and tap Save again.",
+    sleepSaveRetryHint: "Tap Save again once connection is restored.",
   },
   athleteProfile: {
     title: "Athlete profile",

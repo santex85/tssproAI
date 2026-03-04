@@ -116,22 +116,35 @@ export async function api<T>(
     }
     throw e;
   }
-  if (res.status === 401) {
-    if (!retriedAfterRefresh && (await doRefreshToken())) {
-      return api<T>(path, options, true);
+
+  try {
+    if (res.status === 401) {
+      if (!retriedAfterRefresh && (await doRefreshToken())) {
+        return api<T>(path, options, true);
+      }
+      await clearAuth();
+      onUnauthorized?.();
+      const err = await res.text();
+      throw new Error(err || "Unauthorized");
     }
-    await clearAuth();
-    onUnauthorized?.();
-    const err = await res.text();
-    throw new Error(err || "Unauthorized");
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || `HTTP ${res.status}`);
+    }
+    const text = await res.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
+  } catch (e) {
+    const method = String(rest.method || "GET").toUpperCase();
+    const isNetworkLike =
+      e instanceof TypeError && (e.message === "Failed to fetch" || e.message?.includes("network"));
+    const isNetworkError = (e as Error)?.name === "NetworkError" || (e as Error)?.message?.includes("network");
+    if ((isNetworkLike || isNetworkError) && method !== "GET" && method !== "HEAD") {
+      await enqueueOfflineMutation(path, method, body);
+      throw new Error("No network. Action queued and will retry when online.");
+    }
+    throw e;
   }
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
-  }
-  const text = await res.text();
-  if (!text) return undefined as T;
-  return JSON.parse(text) as T;
 }
 
 function isWeb(): boolean {
@@ -608,11 +621,26 @@ export async function createNutritionEntry(payload: CreateNutritionEntryPayload)
   });
 }
 
+function isNetworkError(e: unknown): boolean {
+  if (e instanceof TypeError && (e.message === "Failed to fetch" || e.message?.includes("network"))) return true;
+  const err = e as Error;
+  return err?.name === "NetworkError" || (typeof err?.message === "string" && err.message.includes("network"));
+}
+
 export async function saveSleepFromPreview(extracted_data: SleepExtractedData): Promise<SleepExtractionResponse> {
-  return api<SleepExtractionResponse>("/api/v1/photo/save-sleep", {
-    method: "POST",
-    body: extracted_data,
-  });
+  try {
+    return await api<SleepExtractionResponse>("/api/v1/photo/save-sleep", {
+      method: "POST",
+      body: extracted_data,
+    });
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    await new Promise((r) => setTimeout(r, 1500));
+    return api<SleepExtractionResponse>("/api/v1/photo/save-sleep", {
+      method: "POST",
+      body: extracted_data,
+    });
+  }
 }
 
 export async function getWellness(

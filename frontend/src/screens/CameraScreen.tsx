@@ -28,6 +28,7 @@ import {
 } from "../api/client";
 import { useTranslation } from "../i18n";
 import { useLoadingStages } from "../hooks/useLoadingStages";
+import * as Sentry from "@sentry/react-native";
 import { devLog, getLogs, clearLogs, subscribe, isDevLogEnabled, type LogEntry } from "../utils/devLog";
 import { PremiumGateModal } from "../components/PremiumGateModal";
 
@@ -349,10 +350,27 @@ export function CameraScreen({
       const isSleepSave =
         photoResult?.type === "sleep" &&
         (photoResult.sleep.id == null || photoResult.sleep.id === 0);
+      if (isSleepSave) {
+        Sentry.captureException(e, {
+          tags: { feature: "camera_sleep_save" },
+          extra: { step: "saveSleepFromPreview" },
+        });
+        const err = e as Error;
+        const isNetworkError =
+          err?.name === "NetworkError" ||
+          (err?.message && (err.message.includes("Failed to fetch") || err.message.includes("network") || err.message.includes("No network")));
+        if (isNetworkError) {
+          Alert.alert(t("common.error"), t("camera.sleepSaveNetworkError"));
+          return;
+        }
+      }
       const message = isSleepSave
         ? `Не удалось сохранить данные сна: ${getErrorMessage(e)}`
         : getErrorMessage(e);
       Alert.alert(t("common.error"), message);
+      setPhotoResult(null);
+      setSelectedPhotoUri(null);
+      onClose();
     } finally {
       setSaving(false);
     }
