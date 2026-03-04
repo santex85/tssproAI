@@ -139,8 +139,10 @@ services:
 networks:
   backend-db:
     driver: overlay
+    attachable: true  # allow docker run --network st2_backend-db for one-off migration container
   frontend-backend:
     driver: overlay
+    attachable: true
 
 volumes:
   postgres_data:
