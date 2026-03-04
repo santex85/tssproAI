@@ -445,6 +445,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [sleepHours, setSleepHours] = useState(
     initialWellness?.sleep_hours != null ? String(initialWellness.sleep_hours) : ""
   );
