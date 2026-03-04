@@ -19,6 +19,7 @@ from app.models.chat_thread import ChatThread
 from app.models.food_log import FoodLog
 from app.models.sleep_extraction import SleepExtraction
 from app.models.user import User
+from app.models.user_weekly_summary import UserWeeklySummary
 from app.models.wellness_cache import WellnessCache
 from app.models.workout import Workout
 from app.schemas.pagination import PaginatedResponse
@@ -90,6 +91,7 @@ CHAT_SYSTEM_PREMIUM = """You are the athlete's personal coach in a live, convers
 - Be warm and human: respond like a real coach who knows the athlete's data. Avoid robotic or template phrases. It's fine to be more detailed or to ask a follow-up when it helps.
 - Use only numbers and facts from the context; never invent data. If something is missing, say so naturally.
 - You may give longer, more conversational answers when the user asks for deeper discussion or when explaining trends and recommendations.
+- When the context includes a target race and days_to_race, you may mention the approaching start when relevant (e.g. when discussing load, recovery, or planning); do not repeat it in every message.
 
 Avoid repetition and rigid structure:
 - Do not repeat the same metrics (TSB, ATL, CTL, calories, sleep hours, etc.) in every message. If you or the user already mentioned them in this conversation, refer briefly to what was said ("as I said", "given your current balance") or answer only the new question; do not re-list the numbers.
@@ -182,6 +184,12 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
             athlete["age_years"] = today.year - profile.birth_year
         if profile.ftp is not None:
             athlete["ftp"] = profile.ftp
+        if profile.target_race_date is not None:
+            athlete["target_race_date"] = profile.target_race_date.isoformat()
+        if profile.target_race_name:
+            athlete["target_race_name"] = profile.target_race_name
+        if profile.target_race_date is not None and profile.target_race_date >= today:
+            athlete["days_to_race"] = (profile.target_race_date - today).days
     if not athlete.get("display_name") and email:
         athlete["display_name"] = email
 
@@ -254,6 +262,18 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
     parts = [
         "## Athlete profile (weight, height, age, FTP, name, sex)",
         _cap(json.dumps(athlete, default=str)),
+    ]
+    if is_premium:
+        r_summary = await session.execute(
+            select(UserWeeklySummary.summary_text)
+            .where(UserWeeklySummary.user_id == user_id)
+            .order_by(UserWeeklySummary.week_start_date.desc())
+            .limit(1)
+        )
+        row = r_summary.one_or_none()
+        if row and row[0]:
+            parts.append("## Coach memory (weekly summary)\n" + _cap(row[0], limit=600))
+    parts.extend([
         "## Food today (sum)",
         f"Calories: {food_sum['calories']:.0f}, Protein: {food_sum['protein_g']:.0f}g, Fat: {food_sum['fat_g']:.0f}g, Carbs: {food_sum['carbs_g']:.0f}g",
         "## Food today (entries)",
@@ -268,7 +288,7 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
         _cap(sleep_summary),
         "## Recent workouts (manual/FIT)",
         _cap(json.dumps(workouts, default=str)),
-    ]
+    ])
     return "\n".join(parts)
 
 
@@ -326,6 +346,81 @@ def _fit_data_to_summary(data: dict) -> str:
     if data.get("total_calories") is not None:
         parts.append(f"Calories: {data['total_calories']}")
     return "; ".join(parts) if parts else "No session data"
+
+
+async def _get_fit_monthly_aggregates(
+    session: AsyncSession,
+    user_id: int,
+    fit_data: dict,
+) -> str | None:
+    """
+    Fetch workouts from the last 30 days with power/HR in raw (FIT or similar),
+    optionally filter by same sport. Return a short text block with monthly averages
+    (avg power, avg HR, average EF) for context when analyzing the current FIT.
+    """
+    from_dt = datetime.now(timezone.utc) - timedelta(days=30)
+    r = await session.execute(
+        select(Workout.raw, Workout.type).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= from_dt,
+            Workout.raw.isnot(None),
+        )
+    )
+    rows = r.all()
+    current_sport = (fit_data.get("sport") or "").strip().lower()
+    if current_sport:
+        current_sport = current_sport.replace("_", " ")
+
+    ef_values: list[float] = []
+    avg_powers: list[float] = []
+    avg_hrs: list[float] = []
+    np_values: list[float] = []
+
+    for raw_json, w_type in rows:
+        if not raw_json or not isinstance(raw_json, dict):
+            continue
+        if current_sport:
+            raw_sport = (raw_json.get("sport") or "").strip().lower().replace("_", " ")
+            type_lower = (w_type or "").strip().lower()
+            if raw_sport != current_sport and type_lower != current_sport:
+                continue
+        hr = raw_json.get("avg_heart_rate")
+        if hr is not None:
+            try:
+                hr = float(hr)
+            except (TypeError, ValueError):
+                continue
+        power = raw_json.get("avg_power")
+        np_val = raw_json.get("normalized_power")
+        if power is not None:
+            try:
+                power = float(power)
+            except (TypeError, ValueError):
+                power = None
+        if np_val is not None:
+            try:
+                np_val = float(np_val)
+            except (TypeError, ValueError):
+                np_val = None
+        use_power = np_val if np_val is not None else power
+        if use_power is not None and hr is not None and hr > 0:
+            ef_values.append(use_power / hr)
+            avg_powers.append(use_power)
+            avg_hrs.append(hr)
+            if np_val is not None:
+                np_values.append(np_val)
+
+    if not ef_values:
+        return None
+    n = len(ef_values)
+    avg_ef = sum(ef_values) / n
+    avg_pwr = sum(avg_powers) / n
+    avg_hr = sum(avg_hrs) / n
+    parts = [
+        f"Monthly averages (last 30 days, similar workouts): count={n}",
+        f"Avg power/NP: {avg_pwr:.1f} W, Avg HR: {avg_hr:.1f} bpm, Avg EF (power/HR): {avg_ef:.2f}.",
+    ]
+    return " ".join(parts)
 
 
 class SendMessageBody(BaseModel):
@@ -681,9 +776,23 @@ async def send_message_with_file(
         context = await _build_athlete_context(session, uid, user.is_premium)
         if fit_summary:
             context += "\n\n## Uploaded workout (this message)\n" + fit_summary
+        if fit_data:
+            monthly = await _get_fit_monthly_aggregates(session, uid, fit_data)
+            if monthly:
+                context += "\n\n## Monthly averages (similar workouts, last 30 days)\n" + monthly
         model = genai.GenerativeModel(settings.gemini_model)
         chat_system = _chat_system_with_locale(locale, user.is_premium)
-        prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {user_content or 'Разбери приложенную тренировку.'}"
+        fit_instruction = ""
+        if fit_summary and fit_data:
+            fit_instruction = (
+                "\n\nIf context includes monthly averages for similar workouts, compare the current workout to them "
+                "and comment on progress in power-to-heart-rate efficiency (EF) and decoupling where data allows. "
+                "Respond in the user's language."
+            )
+        prompt = (
+            f"{chat_system}\n\nContext:\n{context}\n\n"
+            f"User message: {user_content or 'Разбери приложенную тренировку.'}{fit_instruction}"
+        )
         response = await run_generate_content(model, prompt)
         reply = response.text if response and response.text else "No response."
 
@@ -761,14 +870,14 @@ async def send_message_with_image(
     "/orchestrator/run",
     response_model=dict,
     summary="Run daily orchestrator",
-    responses={401: {"description": "Not authenticated"}, 403: {"description": "Pro required"}, 502: {"description": "Orchestrator failed"}},
+    responses={401: {"description": "Not authenticated"}, 502: {"description": "Orchestrator failed"}},
 )
 async def run_orchestrator(
     session: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(require_premium)],
+    user: Annotated[User, Depends(get_current_user)],
     body: RunOrchestratorBody | None = Body(default=None),
 ) -> dict:
-    """Run daily decision (Go/Modify/Skip) for today and return result. Pro only. May update Intervals and add chat message."""
+    """Run daily decision for today. Premium: full result; Free: decision only with is_teaser=true."""
     uid = user.id
     body = body or RunOrchestratorBody()
     locale = body.locale
@@ -778,13 +887,15 @@ async def run_orchestrator(
         session, uid, today=for_date, locale=locale, client_local_hour=client_local_hour
     )
     await session.commit()
-    return {
-        "decision": result.decision.value,
-        "reason": result.reason,
-        "modified_plan": result.modified_plan.model_dump() if result.modified_plan else None,
-        "suggestions_next_days": result.suggestions_next_days,
-        "evening_tips": result.evening_tips,
-        "plan_tomorrow": result.plan_tomorrow,
-    }
+    if user.is_premium:
+        return {
+            "decision": result.decision.value,
+            "reason": result.reason,
+            "modified_plan": result.modified_plan.model_dump() if result.modified_plan else None,
+            "suggestions_next_days": result.suggestions_next_days,
+            "evening_tips": result.evening_tips,
+            "plan_tomorrow": result.plan_tomorrow,
+        }
+    return {"decision": result.decision.value, "is_teaser": True}
 
 
