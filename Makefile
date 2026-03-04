@@ -63,15 +63,16 @@ up-prod:
 migrate-prod:
 	$(COMPOSE_PROD) exec -T backend alembic upgrade head
 
-# Деплой на сервер: пуш в origin main, затем на сервере git pull, build, up -d, alembic upgrade
-# Требует SSH-доступ: ssh $(DEPLOY_USER)@$(DEPLOY_HOST). Переопределить: make deploy DEPLOY_HOST=1.2.3.4 DEPLOY_PATH=/home/app/smart_trainer
+# Деплой на сервер: пуш в origin main, затем на сервере git pull, build, stack deploy, alembic upgrade.
+# Требует на сервере: docker swarm init (один раз). Лимиты deploy.resources применяются только при stack deploy.
+# Переопределить: make deploy DEPLOY_HOST=1.2.3.4 DEPLOY_PATH=/home/app/smart_trainer
 deploy:
 	git push origin main
 	$(MAKE) deploy-no-push
 
-# Только действия на сервере (без git push). Удобно, если коммиты уже запушены.
+# Только действия на сервере (без git push). Сборка образов, затем docker stack deploy (Swarm) и миграции.
 deploy-no-push:
-	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && git pull && $(COMPOSE_PROD) build && $(COMPOSE_PROD) up -d && $(COMPOSE_PROD) exec -T backend alembic upgrade head"
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && git pull && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml st2 && sleep 20 && docker service exec st2_backend alembic upgrade head"
 	@echo "Деплой завершён: https://tsspro.tech"
 
 shell-backend:

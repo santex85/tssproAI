@@ -46,8 +46,7 @@ services:
       BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 3 * * *}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-0}
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     networks:
       - backend-db
     restart: unless-stopped
