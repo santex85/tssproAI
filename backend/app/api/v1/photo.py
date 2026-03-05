@@ -20,7 +20,7 @@ from app.services.gemini_nutrition import analyze_food_from_image
 from app.services.gemini_photo_analyzer import classify_and_analyze_image
 from app.services.gemini_sleep_parser import extract_sleep_data
 from app.services.image_resize import resize_image_for_ai_async
-from app.services.sleep_analysis import analyze_and_save_sleep, save_sleep_result, update_sleep_extraction_result
+from app.services.sleep_analysis import analyze_and_save_sleep, get_resolved_sleep_hours_from_data, save_sleep_result, update_sleep_extraction_result
 from app.services.audit import log_action
 from app.services.storage import download_image, upload_image
 from sqlalchemy import select
@@ -475,12 +475,7 @@ async def list_sleep_extractions(
             data = json.loads(data_json) if isinstance(data_json, str) else data_json
         except (json.JSONDecodeError, TypeError):
             continue
-        sh = data.get("sleep_hours")
-        ah = data.get("actual_sleep_hours")
-        if sh is None and data.get("sleep_minutes") is not None:
-            sh = round(data["sleep_minutes"] / 60.0, 2)
-        if ah is None and data.get("actual_sleep_minutes") is not None:
-            ah = round(data["actual_sleep_minutes"] / 60.0, 2)
+        resolved_hours = get_resolved_sleep_hours_from_data(data)
         created_date = created_at.date() if created_at else None
         data_date_str = data.get("date")
         if created_date is not None and data_date_str and len(str(data_date_str).strip()) >= 10:
@@ -496,8 +491,8 @@ async def list_sleep_extractions(
             "id": ext_id,
             "created_at": created_at.isoformat() if created_at else "",
             "sleep_date": data_date_str,
-            "sleep_hours": sh,
-            "actual_sleep_hours": ah,
+            "sleep_hours": resolved_hours,
+            "actual_sleep_hours": data.get("actual_sleep_hours") or (round(data["actual_sleep_minutes"] / 60.0, 2) if data.get("actual_sleep_minutes") is not None else None),
             "quality_score": data.get("quality_score"),
             "can_reanalyze": bool(image_storage_path) and user.is_premium,
         })

@@ -84,10 +84,20 @@ def _sleep_date_from_result(result: SleepExtractionResult) -> date_cls:
 
 
 def _sleep_hours_from_result(result: SleepExtractionResult) -> float | None:
-    """Use actual sleep only (never actual + awake). Prefer actual_sleep_hours; if missing, derive from sleep_hours - awake_min."""
+    """Use actual sleep only (never time in bed or actual+awake). Priority: actual_sleep_hours → deep+light+rem → sleep_hours-awake → sleep_hours."""
     if result.actual_sleep_hours is not None:
         try:
             return round(float(result.actual_sleep_hours), 2)
+        except (TypeError, ValueError):
+            pass
+    deep = getattr(result, "deep_sleep_min", None)
+    light = getattr(result, "light_sleep_min", None)
+    rem = getattr(result, "rem_min", None)
+    if deep is not None or light is not None or rem is not None:
+        try:
+            total_min = (float(deep or 0) + float(light or 0) + float(rem or 0))
+            if 60 <= total_min <= 600:
+                return round(total_min / 60.0, 2)
         except (TypeError, ValueError):
             pass
     if result.sleep_hours is not None and getattr(result, "awake_min", None) is not None:
@@ -101,6 +111,49 @@ def _sleep_hours_from_result(result: SleepExtractionResult) -> float | None:
     if result.sleep_hours is not None:
         try:
             return round(float(result.sleep_hours), 2)
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def get_resolved_sleep_hours_from_data(data: dict[str, Any]) -> float | None:
+    """Same logic as _sleep_hours_from_result but for raw extracted_data dict. Used by list API so dashboard shows actual sleep only."""
+    ah = data.get("actual_sleep_hours")
+    if ah is not None:
+        try:
+            return round(float(ah), 2)
+        except (TypeError, ValueError):
+            pass
+    if ah is None and data.get("actual_sleep_minutes") is not None:
+        try:
+            return round(data["actual_sleep_minutes"] / 60.0, 2)
+        except (TypeError, ValueError):
+            pass
+    deep = data.get("deep_sleep_min")
+    light = data.get("light_sleep_min")
+    rem = data.get("rem_min")
+    if deep is not None or light is not None or rem is not None:
+        try:
+            total_min = (float(deep or 0) + float(light or 0) + float(rem or 0))
+            if 60 <= total_min <= 600:
+                return round(total_min / 60.0, 2)
+        except (TypeError, ValueError):
+            pass
+    sh = data.get("sleep_hours")
+    if sh is None and data.get("sleep_minutes") is not None:
+        sh = data["sleep_minutes"] / 60.0
+    awake = data.get("awake_min")
+    if sh is not None and awake is not None:
+        try:
+            total_h = float(sh)
+            awake_h = float(awake) / 60.0
+            if total_h >= awake_h:
+                return round(total_h - awake_h, 2)
+        except (TypeError, ValueError):
+            pass
+    if sh is not None:
+        try:
+            return round(float(sh), 2)
         except (TypeError, ValueError):
             pass
     return None
