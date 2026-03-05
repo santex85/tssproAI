@@ -284,6 +284,8 @@ setup_admin(app)
 
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
+# Prometheus may scrape /metrics/metrics/ (base URL + metrics_path); mount so path becomes "/" and a response is returned
+app.mount("/metrics/metrics", metrics_app)
 
 
 @app.get("/health")
