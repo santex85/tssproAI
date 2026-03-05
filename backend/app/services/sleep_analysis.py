@@ -6,6 +6,7 @@ from datetime import date as date_cls
 import json
 from typing import Any
 
+from sqlalchemy import case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -83,13 +84,26 @@ def _sleep_date_from_result(result: SleepExtractionResult) -> date_cls:
 
 
 def _sleep_hours_from_result(result: SleepExtractionResult) -> float | None:
-    hours = result.actual_sleep_hours if result.actual_sleep_hours is not None else result.sleep_hours
-    if hours is None:
-        return None
-    try:
-        return float(hours)
-    except (TypeError, ValueError):
-        return None
+    """Use actual sleep only (never actual + awake). Prefer actual_sleep_hours; if missing, derive from sleep_hours - awake_min."""
+    if result.actual_sleep_hours is not None:
+        try:
+            return round(float(result.actual_sleep_hours), 2)
+        except (TypeError, ValueError):
+            pass
+    if result.sleep_hours is not None and getattr(result, "awake_min", None) is not None:
+        try:
+            total_h = float(result.sleep_hours)
+            awake_h = float(result.awake_min) / 60.0
+            if total_h >= awake_h:
+                return round(total_h - awake_h, 2)
+        except (TypeError, ValueError):
+            pass
+    if result.sleep_hours is not None:
+        try:
+            return round(float(result.sleep_hours), 2)
+        except (TypeError, ValueError):
+            pass
+    return None
 
 
 def _rhr_from_result(result: SleepExtractionResult) -> float | None:
@@ -127,13 +141,22 @@ async def _upsert_sleep_into_wellness_cache(
         "user_id": user_id,
         "date": sleep_date,
         "sleep_hours": sleep_hours,
+        "sleep_source": "photo" if sleep_hours is not None else None,
         "rhr": rhr,
         "hrv": hrv,
     }
     stmt = pg_insert(WellnessCache).values(values)
     set_: dict[str, object] = {}
     if sleep_hours is not None:
-        set_["sleep_hours"] = stmt.excluded.sleep_hours
+        # Do not overwrite sleep when user set it manually
+        set_["sleep_hours"] = case(
+            (WellnessCache.sleep_source == "manual", WellnessCache.sleep_hours),
+            else_=stmt.excluded.sleep_hours,
+        )
+        set_["sleep_source"] = case(
+            (WellnessCache.sleep_source == "manual", WellnessCache.sleep_source),
+            else_=literal("photo"),
+        )
     if rhr is not None:
         set_["rhr"] = stmt.excluded.rhr
     if hrv is not None:

@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import Float, Date, ForeignKey
+from sqlalchemy import Float, Date, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 from app.db.base import Base
@@ -12,6 +12,7 @@ class WellnessCache(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     sleep_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sleep_source: Mapped[str | None] = mapped_column(String(20), nullable=True)  # 'manual' | 'photo' | 'sync'
     rhr: Mapped[float | None] = mapped_column(Float, nullable=True)  # resting heart rate
     hrv: Mapped[float | None] = mapped_column(Float, nullable=True)
     ctl: Mapped[float | None] = mapped_column(Float, nullable=True)  # chronic training load

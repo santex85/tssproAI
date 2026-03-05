@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import case, literal, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
@@ -315,7 +315,7 @@ async def sync_intervals_to_db(
         await session.execute(stmt_workouts)
     count_workouts = len(workout_rows)
 
-    # Batch upsert wellness_cache: ctl, atl, tsb from Intervals; preserve existing sleep_hours/rhr/hrv/weight_kg via coalesce
+    # Batch upsert wellness_cache: ctl, atl, tsb from Intervals; sleep_hours only when not manual/photo
     wellness_rows = []
     for w in wellness_days:
         if w.date is None:
@@ -324,6 +324,7 @@ async def sync_intervals_to_db(
             "user_id": user_id,
             "date": w.date,
             "sleep_hours": w.sleep_hours,
+            "sleep_source": "sync" if w.sleep_hours is not None else None,
             "rhr": float(w.rhr) if w.rhr is not None else None,
             "hrv": float(w.hrv) if w.hrv is not None else None,
             "ctl": w.ctl,
@@ -340,7 +341,15 @@ async def sync_intervals_to_db(
                 "ctl": stmt_wellness.excluded.ctl,
                 "atl": stmt_wellness.excluded.atl,
                 "tsb": stmt_wellness.excluded.tsb,
-                "sleep_hours": func.coalesce(WellnessCache.sleep_hours, stmt_wellness.excluded.sleep_hours),
+                "sleep_hours": case(
+                    (WellnessCache.sleep_source.in_(["manual", "photo"]), WellnessCache.sleep_hours),
+                    else_=func.coalesce(WellnessCache.sleep_hours, stmt_wellness.excluded.sleep_hours),
+                ),
+                "sleep_source": case(
+                    (WellnessCache.sleep_source.in_(["manual", "photo"]), WellnessCache.sleep_source),
+                    (stmt_wellness.excluded.sleep_hours.isnot(None), literal("sync")),
+                    else_=WellnessCache.sleep_source,
+                ),
                 "rhr": func.coalesce(WellnessCache.rhr, stmt_wellness.excluded.rhr),
                 "hrv": func.coalesce(WellnessCache.hrv, stmt_wellness.excluded.hrv),
                 "weight_kg": func.coalesce(WellnessCache.weight_kg, stmt_wellness.excluded.weight_kg),

@@ -28,9 +28,11 @@ SAFETY_SETTINGS = {
 
 SLEEP_EXTRACT_PROMPT_LITE = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker. Interface can be in any language. Extract only the main metrics. Never round to whole hours: use exact decimals. Examples: "6 ч 31 мин" or "6h 31m" → sleep_hours 6.52; "6 ч 5 мин" or "Фактическое время сна 6 ч 5 мин" → actual_sleep_hours 6.08. Formula: hours + minutes/60. Prefer null over guessing — if you cannot read a value, omit it or set null.
 
+IMPORTANT: The app displays "actual sleep" (time truly asleep, excluding wake-ups). Always extract "Фактическое время сна" / "Actual sleep" / the metric that excludes awakenings into actual_sleep_hours. If the screenshot shows both total "Время сна" (time in bed or total) and "Фактическое время сна", put the former in sleep_hours and the latter in actual_sleep_hours. Do NOT put (actual_sleep + awake_min) or time-in-bed as the main value.
+
 Return a JSON object with only these optional fields (null for missing):
 - date: string YYYY-MM-DD
-- sleep_hours, actual_sleep_hours: numbers (exact decimals, e.g. 6.52 not 6)
+- sleep_hours, actual_sleep_hours: numbers (exact decimals, e.g. 6.52 not 6); prefer actual_sleep_hours for the metric that excludes wake time
 - quality_score: number 0-100
 - bedtime, wake_time: "HH:MM"
 - deep_sleep_min, rem_min, light_sleep_min, awake_min: minutes (optional, from phases if visible)
@@ -39,12 +41,14 @@ Output ONLY valid JSON, no markdown."""
 
 SLEEP_EXTRACT_PROMPT = """You are a sleep data extraction system. This image is a screenshot from a sleep tracker (e.g. Russian: Сон, Время сна, Показатель сна, Фазы сна, Факторы влияющие на показатели сна). Interface can be in any language. Extract EVERY number, label, and graph. Never round to whole hours: use exact decimals. Examples: "Время сна 6 ч 31 мин" → sleep_hours 6.52; "Фактическое время сна 6 ч 5 мин" → actual_sleep_hours 6.08. Formula: hours + minutes/60. Prefer null over guessing — if you cannot read a value, omit it or set null.
 
+IMPORTANT: The app uses "actual sleep" (time truly asleep, excluding wake-ups). Always put "Фактическое время сна" / "Actual sleep" into actual_sleep_hours. If the UI shows both a total (e.g. "Время сна" / time in bed) and "Фактическое время сна", put the former in sleep_hours and the latter in actual_sleep_hours. Do NOT use (actual_sleep + awake_min) or time-in-bed as the main display value.
+
 Return a JSON object with only these optional fields (null for missing):
 
 Basic:
 - date: string YYYY-MM-DD ("23/2" → current year 02-23)
-- sleep_hours, sleep_minutes: total sleep from "Время сна" (exact decimal for hours, e.g. 6.52)
-- actual_sleep_hours, actual_sleep_minutes: "Фактическое время сна" / actual sleep time (exact decimal)
+- sleep_hours, sleep_minutes: total from "Время сна" or time in bed (exact decimal for hours, e.g. 6.52)
+- actual_sleep_hours, actual_sleep_minutes: "Фактическое время сна" / actual sleep time excluding awakenings (exact decimal) — always extract this when the screenshot shows it
 - time_in_bed_min: total time in bed, minutes
 - quality_score: number 0-100 (main score e.g. 54)
 - score_delta: number (change vs previous, e.g. 27 or -27 if shown next to score)

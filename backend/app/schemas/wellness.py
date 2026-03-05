@@ -20,6 +20,7 @@ class WellnessDayResponse(BaseModel):
 
     date: date
     sleep_hours: float | None = None
+    sleep_source: str | None = None  # 'manual' | 'photo' | 'sync'
     rhr: float | None = None
     hrv: float | None = None
     ctl: float | None = None

@@ -21,6 +21,7 @@ def _row_to_response(row: WellnessCache) -> dict:
     return {
         "date": row.date.isoformat(),
         "sleep_hours": row.sleep_hours,
+        "sleep_source": row.sleep_source,
         "rhr": row.rhr,
         "hrv": row.hrv,
         "ctl": row.ctl,
@@ -88,9 +89,11 @@ async def upsert_wellness(
         )
     )
     row = r.scalar_one_or_none()
+    sleep_key_sent = "sleep_hours" in body.model_fields_set
     if row:
-        if body.sleep_hours is not None:
+        if sleep_key_sent:
             row.sleep_hours = body.sleep_hours
+            row.sleep_source = "manual"
         if body.rhr is not None:
             row.rhr = body.rhr
         if body.hrv is not None:
@@ -103,6 +106,7 @@ async def upsert_wellness(
                 user_id=uid,
                 date=body.date,
                 sleep_hours=body.sleep_hours,
+                sleep_source="manual" if sleep_key_sent else None,
                 rhr=body.rhr,
                 hrv=body.hrv,
                 weight_kg=body.weight_kg,
