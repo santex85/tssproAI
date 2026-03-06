@@ -6,10 +6,16 @@ DEPLOY_HOST ?= 167.71.74.220
 DEPLOY_USER ?= root
 DEPLOY_PATH ?= /root/smart_trainer
 
+# Dev server (dev.tsspro.tech)
+DEV_DEPLOY_HOST ?= 209.38.17.171
+DEV_DEPLOY_USER ?= root
+DEV_DEPLOY_PATH ?= /root/smart_trainer
+REPO_URL ?= $(shell git remote get-url origin 2>/dev/null || true)
+
 # Версия для образов: из Git тега (v0.1.0-alpha.1) или коммита. В проде — только протегированные сборки.
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "0.1.0-alpha.1")
 
-.PHONY: build up down run logs logs-backend logs-frontend logs-db ps migrate shell-backend use-localhost use-wifi set-wifi test build-prod up-prod migrate-prod build-prod-tagged deploy deploy-no-push
+.PHONY: build up down run logs logs-backend logs-frontend logs-db ps migrate shell-backend use-localhost use-wifi set-wifi test build-prod up-prod migrate-prod build-prod-tagged deploy deploy-no-push bootstrap-dev ensure-dev-server deploy-dev deploy-dev-no-push
 
 build:
 	docker compose build
@@ -80,6 +86,35 @@ deploy-no-push:
 deploy-fix-networks:
 	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && docker stack rm st2 && echo 'Ждём снятия сервисов...' && sleep 25 && docker network rm st2_backend-db st2_frontend-backend 2>/dev/null || true"
 	@echo "Сети пересозданы. Запустите: make deploy"
+
+# Dev server: one-time bootstrap (Docker + Swarm). Then clone repo, create .env from .env.development.example, and make deploy-dev.
+bootstrap-dev:
+	scp deploy/bootstrap-dev.sh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST):/tmp/bootstrap-dev.sh
+	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "DEPLOY_PATH=$(DEV_DEPLOY_PATH) ADVERTISE_ADDR=$(DEV_DEPLOY_HOST) bash /tmp/bootstrap-dev.sh"
+
+# Ensure dev server is ready: bootstrap, clone repo if missing, create .env from example if missing (then exit 1 so user fills secrets).
+ensure-dev-server:
+	@$(MAKE) bootstrap-dev
+	@ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "export REPO_URL='$(REPO_URL)' DEPLOY_PATH='$(DEV_DEPLOY_PATH)'; \
+		if [ -z \"\$$REPO_URL\" ]; then echo 'REPO_URL empty (no git remote origin?). Set REPO_URL= or clone repo on server.'; exit 1; fi; \
+		if [ ! -d \"\$$DEPLOY_PATH/.git\" ]; then echo 'Cloning repo into' \$$DEPLOY_PATH '...'; git clone \"\$$REPO_URL\" \"\$$DEPLOY_PATH\"; fi; \
+		if [ ! -f \"\$$DEPLOY_PATH/.env\" ]; then \
+			if [ -f \"\$$DEPLOY_PATH/.env.development.example\" ]; then cp \"\$$DEPLOY_PATH/.env.development.example\" \"\$$DEPLOY_PATH/.env\"; \
+			else cp \"\$$DEPLOY_PATH/.env.production.example\" \"\$$DEPLOY_PATH/.env\"; fi; \
+			echo ''; echo 'Created .env from example. Fill in secrets on the server then run make deploy-dev again:'; \
+			echo '  ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST)'; echo \"  nano \$$DEPLOY_PATH/.env\"; echo ''; exit 1; \
+		fi"
+
+# Deploy to dev server (dev.tsspro.tech): ensure server ready, push, then deploy on 209.38.17.171.
+deploy-dev: ensure-dev-server
+	git push origin main
+	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH)
+	@echo "Деплой завершён: https://dev.tsspro.tech"
+
+# Deploy to dev server without git push.
+deploy-dev-no-push: ensure-dev-server
+	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH)
+	@echo "Деплой завершён: https://dev.tsspro.tech"
 
 shell-backend:
 	docker compose exec backend sh
