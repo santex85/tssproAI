@@ -85,12 +85,12 @@ deploy:
 	git push origin main
 	$(MAKE) deploy-no-push
 
-# Только действия на сервере. Если задан DEPLOY_BRANCH — на сервере checkout и pull этой ветки; иначе git pull (main).
+# Только действия на сервере. Если задан DEPLOY_BRANCH — fetch + reset --hard (локальные правки на сервере сбрасываются); иначе git pull (main).
 # Сборка образов, docker stack deploy (Swarm), alembic upgrade head.
 deploy-no-push:
 	@BRANCH_CMD=''; \
 	if [ -n '$(DEPLOY_BRANCH)' ]; then \
-		BRANCH_CMD='git fetch origin && git checkout "$(DEPLOY_BRANCH)" && git pull origin "$(DEPLOY_BRANCH)"'; \
+		BRANCH_CMD='git fetch origin && git checkout "$(DEPLOY_BRANCH)" && git reset --hard origin/$(DEPLOY_BRANCH)'; \
 	else \
 		BRANCH_CMD='git pull'; \
 	fi; \
