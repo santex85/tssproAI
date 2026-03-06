@@ -2264,12 +2264,16 @@ export function DashboardScreen({
       )}
       </View>
       </ScrollView>
-      <View style={styles.fabWrapper}>
-        <LinearGradient colors={["#3b82f6", "#8b5cf6"]} style={StyleSheet.absoluteFill} />
-        <TouchableOpacity style={styles.fabTouchable} onPress={onOpenCamera} activeOpacity={0.9}>
-          <Text style={styles.fabLabel}>📷</Text>
-          <Text style={styles.fabText}>{t("dashboard.photo")}</Text>
-        </TouchableOpacity>
+      <View style={styles.fabLayer} pointerEvents="box-none">
+        <View style={[styles.fabRail, Platform.OS === "web" && styles.fabRailWeb]} pointerEvents="box-none">
+          <View style={styles.fabWrapper}>
+            <LinearGradient colors={["#3b82f6", "#8b5cf6"]} style={StyleSheet.absoluteFill} />
+            <TouchableOpacity style={styles.fabTouchable} onPress={onOpenCamera} activeOpacity={0.9}>
+              <Text style={styles.fabLabel}>📷</Text>
+              <Text style={styles.fabText}>{t("dashboard.photo")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -2509,10 +2513,22 @@ const styles = StyleSheet.create({
   orchestratorUpgradeBtnText: { fontSize: 16, fontWeight: "600" },
   chatLink: { marginTop: 16, paddingVertical: 12 },
   chatLinkText: { fontSize: 16, color: "#38bdf8" },
-  fabWrapper: {
+  fabLayer: {
     position: "absolute",
+    left: 0,
+    right: 0,
     bottom: 24,
-    right: 20,
+  },
+  fabRail: {
+    width: "100%",
+    paddingHorizontal: 20,
+    alignItems: "flex-end",
+  },
+  fabRailWeb: {
+    maxWidth: 960,
+    alignSelf: "center",
+  },
+  fabWrapper: {
     borderRadius: 28,
     overflow: "hidden",
     elevation: 8,

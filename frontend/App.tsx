@@ -16,6 +16,7 @@ import {
   Platform,
   Pressable,
   LogBox,
+  useWindowDimensions,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -65,6 +66,8 @@ function AppContent() {
   const { t } = useTranslation();
   const { colors, mode } = useTheme();
   const isWeb = Platform.OS === "web";
+  const { width: windowWidth } = useWindowDimensions();
+  const webChromeWidth = isWeb ? Math.max(Math.min(windowWidth - 40, 920), 320) : undefined;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(!isWeb);
@@ -208,7 +211,13 @@ function AppContent() {
                   borderTopColor: colors.glassBorder,
                   borderTopLeftRadius: colors.borderRadiusLg,
                   borderTopRightRadius: colors.borderRadiusLg,
-                  ...(Platform.OS === "web" ? { backdropFilter: "blur(20px)" as any } : {}),
+                  ...(Platform.OS === "web"
+                    ? {
+                        backdropFilter: "blur(20px)" as any,
+                        width: webChromeWidth,
+                        alignSelf: "center" as const,
+                      }
+                    : {}),
                 },
                 tabBarActiveTintColor: colors.tabActive,
                 tabBarInactiveTintColor: colors.tabInactive,
