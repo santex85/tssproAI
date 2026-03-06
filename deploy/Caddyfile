@@ -1,6 +1,20 @@
-# Production: set DOMAIN in .env (e.g. trainer.example.com).
-# FRONTEND_UPSTREAM: for docker stack deploy use st2_frontend (Swarm DNS); for compose use frontend.
+# Production: set DOMAIN (landing) and APP_DOMAIN (app) in .env.
+# DOMAIN=tsspro.tech -> landing page
+# APP_DOMAIN=app.tsspro.tech -> main app + API + grafana
+# LANDING_UPSTREAM, FRONTEND_UPSTREAM: for stack deploy use st2_landing, st2_frontend.
+
+# Landing: tsspro.tech
 {$DOMAIN} {
+  reverse_proxy {$LANDING_UPSTREAM}:80 {
+    transport http {
+      read_timeout 300s
+      write_timeout 300s
+    }
+  }
+}
+
+# App: app.tsspro.tech (frontend + API + grafana)
+{$APP_DOMAIN} {
   handle /grafana* {
     reverse_proxy st2_grafana:3000 {
       transport http {

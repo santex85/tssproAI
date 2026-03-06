@@ -84,7 +84,7 @@ services:
       - "127.0.0.1:3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_SERVER_ROOT_URL: "https://${DOMAIN}/grafana/"
+      GF_SERVER_ROOT_URL: "https://${APP_DOMAIN}/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - grafana_data:/var/lib/grafana
@@ -102,6 +102,24 @@ services:
         reservations:
           memory: 32M
 
+  landing:
+    image: st2-landing:latest
+    build:
+      context: ./frontend/landing
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_URL: ${VITE_APP_URL:-https://app.tsspro.tech}
+    networks:
+      - frontend-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+        reservations:
+          memory: 32M
+
   caddy:
     image: caddy:alpine
     networks:
@@ -115,8 +133,11 @@ services:
       - caddy_config:/config
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN in .env for production}
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env for production}
+      LANDING_UPSTREAM: ${LANDING_UPSTREAM:-st2_landing}
       FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-st2_frontend}
     depends_on:
+      - landing
       - frontend
     restart: unless-stopped
     deploy:
