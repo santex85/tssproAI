@@ -1,5 +1,6 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react-native";
+import { NavigationContainer } from "@react-navigation/native";
 import { ChatScreen } from "../ChatScreen";
 import { ThemeProvider } from "../../theme";
 import { I18nProvider } from "../../i18n";
@@ -30,7 +31,9 @@ describe("ChatScreen", () => {
     const { getByPlaceholderText } = render(
       <ThemeProvider>
         <I18nProvider>
-          <ChatScreen user={null} onClose={jest.fn()} />
+          <NavigationContainer>
+            <ChatScreen user={null} onClose={jest.fn()} />
+          </NavigationContainer>
         </I18nProvider>
       </ThemeProvider>
     );
@@ -41,16 +44,18 @@ describe("ChatScreen", () => {
 
   it("shows FIT and Photo buttons when user is premium", async () => {
     const premiumUser = { id: 1, email: "u@test.com", is_premium: true };
-    const { getByText } = render(
+    const { getByLabelText } = render(
       <ThemeProvider>
         <I18nProvider>
-          <ChatScreen user={premiumUser} onClose={jest.fn()} />
+          <NavigationContainer>
+            <ChatScreen user={premiumUser} onClose={jest.fn()} />
+          </NavigationContainer>
         </I18nProvider>
       </ThemeProvider>
     );
     await waitFor(() => {
-      expect(getByText("FIT")).toBeTruthy();
-      expect(getByText("Фото")).toBeTruthy();
+      expect(getByLabelText("FIT")).toBeTruthy();
+      expect(getByLabelText("Фото")).toBeTruthy();
     });
   });
 });

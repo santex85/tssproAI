@@ -1,6 +1,10 @@
 # Stage 1: build Expo web
 FROM node:20-alpine AS builder
 
+# Limit Node heap to avoid OOM during build on low-RAM servers (dev/VPS). Increase build time, reduces peak memory.
+ARG NODE_MEMORY_MB=2048
+ENV NODE_OPTIONS=--max-old-space-size=${NODE_MEMORY_MB}
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./

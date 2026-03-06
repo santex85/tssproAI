@@ -15,7 +15,7 @@ REPO_URL ?= $(shell git remote get-url origin 2>/dev/null || true)
 # Версия для образов: из Git тега (v0.1.0-alpha.1) или коммита. В проде — только протегированные сборки.
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "0.1.0-alpha.1")
 
-.PHONY: build up down run logs logs-backend logs-frontend logs-db ps migrate shell-backend use-localhost use-wifi set-wifi test build-prod up-prod migrate-prod build-prod-tagged deploy deploy-no-push bootstrap-dev ensure-dev-server deploy-dev deploy-dev-no-push
+.PHONY: build up down run logs logs-backend logs-frontend logs-db ps migrate shell-backend use-localhost use-wifi set-wifi test build-prod up-prod migrate-prod build-prod-tagged deploy deploy-no-push bootstrap-dev ensure-dev-server deploy-dev deploy-dev-no-push dev-server-set-node-memory
 
 build:
 	docker compose build
@@ -122,6 +122,10 @@ deploy-dev: ensure-dev-server
 # Deploy to dev server without git push (на сервере всё равно будет checkout текущей ветки и pull).
 deploy-dev-no-push: ensure-dev-server
 	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
+
+# Add or update NODE_MEMORY_MB=768 in .env on dev server (for 1GB RAM). Run once, then make deploy-dev.
+dev-server-set-node-memory:
+	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "grep -q '^NODE_MEMORY_MB=' $(DEV_DEPLOY_PATH)/.env 2>/dev/null && sed -i 's/^NODE_MEMORY_MB=.*/NODE_MEMORY_MB=768/' $(DEV_DEPLOY_PATH)/.env || echo 'NODE_MEMORY_MB=768' >> $(DEV_DEPLOY_PATH)/.env; echo 'NODE_MEMORY_MB=768 set in .env on dev server.'"
 
 shell-backend:
 	docker compose exec backend sh

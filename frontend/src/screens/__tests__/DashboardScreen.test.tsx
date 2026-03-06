@@ -1,5 +1,6 @@
 import React from "react";
 import { render, waitFor } from "@testing-library/react-native";
+import { NavigationContainer } from "@react-navigation/native";
 import { DashboardScreen } from "../DashboardScreen";
 import { ThemeProvider } from "../../theme";
 import { I18nProvider } from "../../i18n";
@@ -34,12 +35,14 @@ describe("DashboardScreen", () => {
     const { getByText } = render(
       <ThemeProvider>
         <I18nProvider>
-          <DashboardScreen
-            user={{ id: 1, email: "test@test.com" }}
-            onLogout={jest.fn()}
-            onOpenCamera={jest.fn()}
-            onOpenChat={jest.fn()}
-          />
+          <NavigationContainer>
+            <DashboardScreen
+              user={{ id: 1, email: "test@test.com" }}
+              onLogout={jest.fn()}
+              onOpenCamera={jest.fn()}
+              onOpenChat={jest.fn()}
+            />
+          </NavigationContainer>
         </I18nProvider>
       </ThemeProvider>
     );

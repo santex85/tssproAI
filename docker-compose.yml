@@ -117,6 +117,7 @@ services:
       args:
         EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-}
         EXPO_PUBLIC_SENTRY_DSN: ${EXPO_PUBLIC_SENTRY_DSN:-${SENTRY_DSN:-}}
+        NODE_MEMORY_MB: ${NODE_MEMORY_MB:-2048}
     depends_on:
       - backend
     networks:

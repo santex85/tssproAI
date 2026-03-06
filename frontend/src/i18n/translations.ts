@@ -2,6 +2,13 @@
  * UI strings — single locale (Russian) for consistent interface.
  * Keys can be reused for en.ts when adding language switch.
  */
+import { de } from "./locales/de";
+import { es } from "./locales/es";
+import { fr } from "./locales/fr";
+import { it } from "./locales/it";
+import { pt } from "./locales/pt";
+import { th } from "./locales/th";
+
 export const ru = {
   app: {
     loading: "Загрузка…",
@@ -857,104 +864,6 @@ export const en = {
     requestError: "Request error",
   },
 } as const;
-
-const settingsDe = {
-  ...en.settings,
-  title: "Einstellungen",
-  theme: "Design",
-  language: "Sprache",
-  back: "Zurück",
-  langRu: "Russisch",
-  langEn: "Englisch",
-  langDe: "Deutsch",
-  langFr: "Französisch",
-  langEs: "Spanisch",
-  langIt: "Italienisch",
-  langPt: "Portugiesisch",
-  langTh: "Thailändisch",
-};
-const settingsFr = {
-  ...en.settings,
-  title: "Paramètres",
-  theme: "Thème",
-  language: "Langue",
-  back: "Retour",
-  langRu: "Russe",
-  langEn: "Anglais",
-  langDe: "Allemand",
-  langFr: "Français",
-  langEs: "Espagnol",
-  langIt: "Italien",
-  langPt: "Portugais",
-  langTh: "Thaï",
-};
-const settingsEs = {
-  ...en.settings,
-  title: "Ajustes",
-  theme: "Tema",
-  language: "Idioma",
-  back: "Atrás",
-  langRu: "Ruso",
-  langEn: "Inglés",
-  langDe: "Alemán",
-  langFr: "Francés",
-  langEs: "Español",
-  langIt: "Italiano",
-  langPt: "Portugués",
-  langTh: "Tailandés",
-};
-const settingsIt = {
-  ...en.settings,
-  title: "Impostazioni",
-  theme: "Tema",
-  language: "Lingua",
-  back: "Indietro",
-  langRu: "Russo",
-  langEn: "Inglese",
-  langDe: "Tedesco",
-  langFr: "Francese",
-  langEs: "Spagnolo",
-  langIt: "Italiano",
-  langPt: "Portoghese",
-  langTh: "Tailandese",
-};
-const settingsPt = {
-  ...en.settings,
-  title: "Configurações",
-  theme: "Tema",
-  language: "Idioma",
-  back: "Voltar",
-  langRu: "Russo",
-  langEn: "Inglês",
-  langDe: "Alemão",
-  langFr: "Francês",
-  langEs: "Espanhol",
-  langIt: "Italiano",
-  langPt: "Português",
-  langTh: "Tailandês",
-};
-const settingsTh = {
-  ...en.settings,
-  title: "การตั้งค่า",
-  theme: "ธีม",
-  language: "ภาษา",
-  back: "กลับ",
-  langRu: "รัสเซีย",
-  langEn: "อังกฤษ",
-  langDe: "เยอรมัน",
-  langFr: "ฝรั่งเศส",
-  langEs: "สเปน",
-  langIt: "อิตาลี",
-  langPt: "โปรตุเกส",
-  langTh: "ไทย",
-};
-
-export const de = { ...en, settings: settingsDe } as const;
-export const fr = { ...en, settings: settingsFr } as const;
-export const es = { ...en, settings: settingsEs } as const;
-export const it = { ...en, settings: settingsIt } as const;
-export const pt = { ...en, settings: settingsPt } as const;
-export const th = { ...en, settings: settingsTh } as const;
 
 export type TranslationKey = keyof typeof ru;
 export type Locale = "ru" | "en" | "de" | "fr" | "es" | "it" | "pt" | "th";
