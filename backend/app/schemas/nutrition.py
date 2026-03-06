@@ -44,6 +44,15 @@ class ReanalyzeRequest(BaseModel):
     correction: str | None = Field(None, max_length=512)
 
 
+class AddFoodFromTextRequest(BaseModel):
+    """Body for POST /nutrition/entries/add-from-text. AI analyzes by name and portion, saves to food_log."""
+
+    name: str = Field(..., min_length=1, max_length=512)
+    portion_grams: float = Field(..., ge=0, le=10000)
+    meal_type: str | None = None
+    date: str | None = Field(None, description="YYYY-MM-DD; default today")
+
+
 class NutritionEntryUpdate(BaseModel):
     """Optional fields for PATCH; same bounds as NutritionAnalysisResult."""
 

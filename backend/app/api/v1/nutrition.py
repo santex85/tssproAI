@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.food_log import FoodLog, MealType
 from app.models.user import User
 from app.schemas.nutrition import (
+    AddFoodFromTextRequest,
     CreateFoodEntryRequest,
     NutritionAnalyzeResponse,
     NutritionDayEntry,
@@ -221,6 +222,93 @@ async def create_nutrition_entry(
         meal_type=log.meal_type,
         timestamp=log.timestamp.isoformat() if log.timestamp else "",
         can_reanalyze=False,
+    )
+
+
+@router.post(
+    "/entries/add-from-text",
+    response_model=NutritionDayEntry,
+    summary="Add food manually (AI analyzes by name and portion)",
+    responses={
+        401: {"description": "Not authenticated"},
+        422: {"description": "AI could not analyze"},
+        502: {"description": "AI service unavailable"},
+    },
+)
+async def add_food_from_text(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    locale: Annotated[str, Depends(get_request_locale)],
+    body: AddFoodFromTextRequest,
+) -> NutritionDayEntry:
+    """
+    Add food manually: provide name and portion_grams. AI analyzes and returns macros, then saves to food_log.
+    Available to all users (no premium required).
+    """
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required.")
+    portion = body.portion_grams
+    try:
+        food_result, extended_nutrients = await analyze_food_from_text(
+            name=name,
+            portion_grams=portion,
+            correction="",
+            extended=True,
+            locale=locale,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        logging.exception("add_food_from_text failed for name=%s", name)
+        raise HTTPException(status_code=502, detail="AI analysis failed. Please try again.")
+
+    meal = (body.meal_type or MealType.other.value).lower()
+    if meal not in [e.value for e in MealType]:
+        meal = MealType.other.value
+    day_str = body.date or datetime.utcnow().date().isoformat()
+    try:
+        day_date = date.fromisoformat(day_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    ts = datetime.combine(day_date, datetime.min.time(), tzinfo=timezone.utc)
+
+    log = FoodLog(
+        user_id=user.id,
+        timestamp=ts,
+        meal_type=meal,
+        name=food_result.name,
+        portion_grams=food_result.portion_grams,
+        calories=food_result.calories,
+        protein_g=food_result.protein_g,
+        fat_g=food_result.fat_g,
+        carbs_g=food_result.carbs_g,
+        image_storage_path=None,
+        extended_nutrients=extended_nutrients,
+    )
+    session.add(log)
+    await session.flush()
+    await log_action(
+        session,
+        user_id=user.id,
+        action="create",
+        resource="food_log",
+        resource_id=str(log.id),
+        details={"source": "nutrition.add-from-text"},
+    )
+    await session.refresh(log)
+    return NutritionDayEntry(
+        id=log.id,
+        name=log.name,
+        portion_grams=log.portion_grams,
+        calories=log.calories,
+        protein_g=log.protein_g,
+        fat_g=log.fat_g,
+        carbs_g=log.carbs_g,
+        meal_type=log.meal_type,
+        timestamp=log.timestamp.isoformat() if log.timestamp else "",
+        extended_nutrients=extended_nutrients if user.is_premium else None,
+        can_reanalyze=user.is_premium,
     )
 
 

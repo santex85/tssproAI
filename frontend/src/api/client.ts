@@ -629,6 +629,20 @@ export async function createNutritionEntry(payload: CreateNutritionEntryPayload)
   });
 }
 
+export type AddFoodFromTextPayload = {
+  name: string;
+  portion_grams: number;
+  meal_type?: string;
+  date?: string;
+};
+
+export async function addFoodFromText(payload: AddFoodFromTextPayload): Promise<NutritionDayEntry> {
+  return api<NutritionDayEntry>("/api/v1/nutrition/entries/add-from-text", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 function isNetworkError(e: unknown): boolean {
   if (e instanceof TypeError && (e.message === "Failed to fetch" || e.message?.includes("network"))) return true;
   const err = e as Error;
