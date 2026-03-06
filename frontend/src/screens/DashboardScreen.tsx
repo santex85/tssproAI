@@ -18,6 +18,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
 import { LineChart } from "react-native-gifted-charts";
+import * as Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Swipeable } from "react-native-gesture-handler";
@@ -1581,6 +1582,7 @@ export function DashboardScreen({
         <View>
           <Text style={styles.brandTitle}>{t("app.brandTitle")}</Text>
           <Text style={styles.brandAlpha}>{t("app.brandAlpha")}</Text>
+          <Text style={styles.brandVersion}>{Constants.expoConfig?.version ?? "0.1.0-alpha.1"}</Text>
         </View>
         <TouchableOpacity
           onPress={() => {
@@ -2181,6 +2183,7 @@ const styles = StyleSheet.create({
   brandHeader: { marginBottom: 8 },
   brandTitle: { fontSize: 18, fontWeight: "700", color: "#eee", marginBottom: 0 },
   brandAlpha: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
+  brandVersion: { fontSize: 9, color: "#64748b", marginTop: 1 },
   brandSubtitle: { fontSize: 13, color: "#94a3b8" },
   title: { fontSize: 24, fontWeight: "700", color: "#eee", marginBottom: 20 },
   sectionTitle: { fontSize: 20, fontWeight: "700", color: "#eee", marginTop: 8, marginBottom: 12 },
