@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.upload import read_upload_bounded
 from app.db.session import get_db
 from app.models.athlete_profile import AthleteProfile
 from app.models.user import User
@@ -446,7 +447,7 @@ async def preview_fit(
     """Parse a FIT file and return session summary without saving to DB."""
     if not file.filename or not file.filename.lower().endswith(".fit"):
         raise HTTPException(status_code=400, detail="Expected a .fit file.")
-    content = await file.read()
+    content = await read_upload_bounded(file)
     if not content:
         raise HTTPException(status_code=400, detail="Empty file.")
 
@@ -505,7 +506,7 @@ async def upload_fit(
     """Upload a FIT file; parse session, dedupe by checksum, create workout with source=fit."""
     if not file.filename or not file.filename.lower().endswith(".fit"):
         raise HTTPException(status_code=400, detail="Expected a .fit file.")
-    content = await file.read()
+    content = await read_upload_bounded(file)
     if not content:
         raise HTTPException(status_code=400, detail="Empty file.")
     checksum = hashlib.sha256(content).hexdigest()

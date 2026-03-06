@@ -11,6 +11,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import check_chat_usage, get_current_user, get_request_locale, language_for_locale, require_premium
+from app.core.upload import read_upload_bounded
 from app.db.session import get_db
 from app.models.athlete_profile import AthleteProfile
 from app.models.chat_message import ChatMessage, MessageRole
@@ -608,31 +609,39 @@ async def send_message(
     session.add(
         ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.user.value, content=body.message)
     )
-    await session.flush()
+    await session.commit()
 
     reply = ""
-    if body.run_orchestrator:
-        result = await run_daily_decision(session, uid, date.today(), locale=locale)
-        reply = f"Decision: {result.decision.value}. {result.reason}"
-        if result.suggestions_next_days:
-            reply += f"\n\n{result.suggestions_next_days}"
-    else:
-        import google.generativeai as genai
-        from app.config import settings
-        from app.services.gemini_common import run_generate_content
-        context = await _build_athlete_context(session, uid, user.is_premium)
-        model = genai.GenerativeModel(settings.gemini_model)
-        chat_system = _chat_system_with_locale(locale, user.is_premium)
-        conversation_block = await _get_conversation_block(session, uid, thread_id)
-        if conversation_block:
-            prompt = (
-                f"{chat_system}\n\nContext:\n{context}\n\nConversation so far:\n{conversation_block}\n\n"
-                "Reply as the coach to the last user message. Do not repeat numbers or advice you already gave above."
-            )
+    try:
+        if body.run_orchestrator:
+            result = await run_daily_decision(session, uid, date.today(), locale=locale)
+            reply = f"Decision: {result.decision.value}. {result.reason}"
+            if result.suggestions_next_days:
+                reply += f"\n\n{result.suggestions_next_days}"
         else:
-            prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {body.message}"
-        response = await run_generate_content(model, prompt)
-        reply = response.text if response and response.text else "No response."
+            import google.generativeai as genai
+            from app.config import settings
+            from app.services.gemini_common import run_generate_content
+            context = await _build_athlete_context(session, uid, user.is_premium)
+            model = genai.GenerativeModel(settings.gemini_model)
+            chat_system = _chat_system_with_locale(locale, user.is_premium)
+            conversation_block = await _get_conversation_block(session, uid, thread_id)
+            if conversation_block:
+                prompt = (
+                    f"{chat_system}\n\nContext:\n{context}\n\nConversation so far:\n{conversation_block}\n\n"
+                    "Reply as the coach to the last user message. Do not repeat numbers or advice you already gave above."
+                )
+            else:
+                prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {body.message}"
+            response = await run_generate_content(model, prompt)
+            reply = response.text if response and response.text else "No response."
+    except Exception:
+        reply = "Sorry, the AI service is temporarily unavailable. Please try again."
+        session.add(
+            ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.assistant.value, content=reply)
+        )
+        await session.commit()
+        raise HTTPException(status_code=502, detail="AI service unavailable")
 
     session.add(
         ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.assistant.value, content=reply)
@@ -681,7 +690,7 @@ async def send_message_with_file(
     user_content = (message or "").strip()
 
     if file and file.filename and file.filename.lower().endswith(".fit"):
-        content = await file.read()
+        content = await read_upload_bounded(file)
         if not content:
             raise HTTPException(status_code=400, detail="Empty FIT file.")
         fit_data = parse_fit_session(content)
@@ -697,41 +706,49 @@ async def send_message_with_file(
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.user.value, content=user_content or "(сообщение)")
     )
-    await session.flush()
+    await session.commit()
 
     reply = ""
-    if run_orch:
-        result = await run_daily_decision(session, uid, date.today(), locale=locale)
-        reply = f"Decision: {result.decision.value}. {result.reason}"
-        if result.suggestions_next_days:
-            reply += f"\n\n{result.suggestions_next_days}"
-    else:
-        import google.generativeai as genai
-        from app.config import settings
-        from app.services.gemini_common import run_generate_content
+    try:
+        if run_orch:
+            result = await run_daily_decision(session, uid, date.today(), locale=locale)
+            reply = f"Decision: {result.decision.value}. {result.reason}"
+            if result.suggestions_next_days:
+                reply += f"\n\n{result.suggestions_next_days}"
+        else:
+            import google.generativeai as genai
+            from app.config import settings
+            from app.services.gemini_common import run_generate_content
 
-        context = await _build_athlete_context(session, uid, user.is_premium)
-        if fit_summary:
-            context += "\n\n## Uploaded workout (this message)\n" + fit_summary
-        if fit_data:
-            monthly = await _get_fit_monthly_aggregates(session, uid, fit_data)
-            if monthly:
-                context += "\n\n## Monthly averages (similar workouts, last 30 days)\n" + monthly
-        model = genai.GenerativeModel(settings.gemini_model)
-        chat_system = _chat_system_with_locale(locale, user.is_premium)
-        fit_instruction = ""
-        if fit_summary and fit_data:
-            fit_instruction = (
-                "\n\nIf context includes monthly averages for similar workouts, compare the current workout to them "
-                "and comment on progress in power-to-heart-rate efficiency (EF) and decoupling where data allows. "
-                "Respond in the user's language."
+            context = await _build_athlete_context(session, uid, user.is_premium)
+            if fit_summary:
+                context += "\n\n## Uploaded workout (this message)\n" + fit_summary
+            if fit_data:
+                monthly = await _get_fit_monthly_aggregates(session, uid, fit_data)
+                if monthly:
+                    context += "\n\n## Monthly averages (similar workouts, last 30 days)\n" + monthly
+            model = genai.GenerativeModel(settings.gemini_model)
+            chat_system = _chat_system_with_locale(locale, user.is_premium)
+            fit_instruction = ""
+            if fit_summary and fit_data:
+                fit_instruction = (
+                    "\n\nIf context includes monthly averages for similar workouts, compare the current workout to them "
+                    "and comment on progress in power-to-heart-rate efficiency (EF) and decoupling where data allows. "
+                    "Respond in the user's language."
+                )
+            prompt = (
+                f"{chat_system}\n\nContext:\n{context}\n\n"
+                f"User message: {user_content or 'Разбери приложенную тренировку.'}{fit_instruction}"
             )
-        prompt = (
-            f"{chat_system}\n\nContext:\n{context}\n\n"
-            f"User message: {user_content or 'Разбери приложенную тренировку.'}{fit_instruction}"
+            response = await run_generate_content(model, prompt)
+            reply = response.text if response and response.text else "No response."
+    except Exception:
+        reply = "Sorry, the AI service is temporarily unavailable. Please try again."
+        session.add(
+            ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
         )
-        response = await run_generate_content(model, prompt)
-        reply = response.text if response and response.text else "No response."
+        await session.commit()
+        raise HTTPException(status_code=502, detail="AI service unavailable")
 
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
@@ -773,7 +790,7 @@ async def send_message_with_image(
 
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="No image file")
-    image_bytes = await file.read()
+    image_bytes = await read_upload_bounded(file)
     _validate_chat_image(file, image_bytes)
     image_bytes = await resize_image_for_ai_async(image_bytes)
     image_description = await _describe_image_for_chat(image_bytes, locale)
@@ -782,19 +799,28 @@ async def send_message_with_image(
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.user.value, content=user_content)
     )
-    await session.flush()
+    await session.commit()
 
-    import google.generativeai as genai
-    from app.config import settings
-    from app.services.gemini_common import run_generate_content
+    reply = ""
+    try:
+        import google.generativeai as genai
+        from app.config import settings
+        from app.services.gemini_common import run_generate_content
 
-    context = await _build_athlete_context(session, uid, user.is_premium)
-    context += "\n\n## Photo in this message\n" + image_description
-    model = genai.GenerativeModel(settings.gemini_model)
-    chat_system = _chat_system_with_locale(locale, is_premium=True)
-    prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {user_content}"
-    response = await run_generate_content(model, prompt)
-    reply = response.text if response and response.text else "No response."
+        context = await _build_athlete_context(session, uid, user.is_premium)
+        context += "\n\n## Photo in this message\n" + image_description
+        model = genai.GenerativeModel(settings.gemini_model)
+        chat_system = _chat_system_with_locale(locale, is_premium=True)
+        prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {user_content}"
+        response = await run_generate_content(model, prompt)
+        reply = response.text if response and response.text else "No response."
+    except Exception:
+        reply = "Sorry, the AI service is temporarily unavailable. Please try again."
+        session.add(
+            ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
+        )
+        await session.commit()
+        raise HTTPException(status_code=502, detail="AI service unavailable")
 
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)

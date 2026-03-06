@@ -25,7 +25,7 @@ from app.models.workout import Workout
 from app.schemas.orchestrator import Decision, ModifiedPlanItem, OrchestratorResponse
 from app.services.gemini_common import run_generate_content
 from app.services.load_metrics import compute_fitness_from_workouts
-from app.services.intervals_client import create_event, update_event
+from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 
@@ -425,8 +425,14 @@ async def run_daily_decision(
                     {"id": e.id, "title": e.title, "start_date": e.start_date.isoformat() if e.start_date else None, "type": e.type}
                     for e in evs
                 ]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "Intervals get_events failed for user_id=%s athlete_id=%s: %s",
+                    user_id,
+                    creds.athlete_id,
+                    e,
+                    exc_info=True,
+                )
 
     context = _build_context(
         food_sum,
@@ -506,7 +512,13 @@ async def run_daily_decision(
                         "type": result.modified_plan.type,
                     },
                 )
-            except Exception:
-                pass  # log and leave plan unchanged
+            except Exception as e:
+                logger.error(
+                    "Intervals create_event failed for user_id=%s athlete_id=%s (modified plan not synced): %s",
+                    user_id,
+                    creds.athlete_id,
+                    e,
+                    exc_info=True,
+                )
 
     return result

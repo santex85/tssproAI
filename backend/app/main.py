@@ -41,7 +41,7 @@ if settings.sentry_dsn:
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.sentry_environment,
-        send_default_pii=True,
+        send_default_pii=False,
     )
 
 scheduler = AsyncIOScheduler()
@@ -192,13 +192,16 @@ async def scheduled_weekly_summary():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # TODO(next push): tighten production detection fallback (e.g., app_env=="production" OR debug==False)
-    # to avoid silently skipping ENCRYPTION_KEY validation when APP_ENV is not set in prod.
-    if getattr(settings, "app_env", "development") == "production":
+    app_env = getattr(settings, "app_env", "development")
+    if app_env == "production":
         if not settings.encryption_key or len(settings.encryption_key) < 32:
             raise RuntimeError(
                 "ENCRYPTION_KEY must be set in production (min 32 chars). "
                 'Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            )
+        if not settings.secret_key or settings.secret_key == "change-me-in-production":
+            raise RuntimeError(
+                "SECRET_KEY must be set in production (do not use default 'change-me-in-production')"
             )
         settings.validate_jwt_config()
     await init_db()
@@ -277,7 +280,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] if settings.cors_origins else ["*"]
+_origins_raw = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] if settings.cors_origins else []
+_origins = _origins_raw if _origins_raw else ["*"]
+if getattr(settings, "app_env", "development") == "production" and _origins == ["*"]:
+    raise RuntimeError(
+        "CORS_ORIGINS must be set in production (explicit allowlist). "
+        "Do not use empty or wildcard origins with allow_credentials=True."
+    )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,

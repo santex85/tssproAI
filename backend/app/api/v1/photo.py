@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, 
 from pydantic import ValidationError as PydanticValidationError
 
 from app.api.deps import check_photo_usage, get_current_user, get_request_locale
+from app.core.upload import read_upload_bounded
 from app.core.rate_limit import check_and_consume_photo_ai_limit
 from app.db.session import get_db
 from app.models.food_log import FoodLog, MealType
@@ -108,7 +109,7 @@ async def analyze_photo(
     Returns either { type: "food", food: {...} } or { type: "sleep", sleep: {...} }.
     """
     await check_and_consume_photo_ai_limit(user.id, user.is_premium)
-    image_bytes = await file.read()
+    image_bytes = await read_upload_bounded(file)
     _validate_image(file, image_bytes)
     image_bytes = await resize_image_for_ai_async(image_bytes)
 
@@ -282,7 +283,7 @@ async def analyze_sleep_photo(
     await check_and_consume_photo_ai_limit(user.id, user.is_premium)
     if mode not in ("lite", "full"):
         mode = "lite"
-    image_bytes = await file.read()
+    image_bytes = await read_upload_bounded(file)
     _validate_image(file, image_bytes)
     image_storage_path: str | None = None
     try:
