@@ -897,9 +897,13 @@ function makeStyles(colors: Record<string, string>) {
     hint: { fontSize: 12, marginTop: 8 },
     askAiBtn: {
       paddingVertical: 14,
+      paddingHorizontal: 24,
       borderRadius: 12,
       alignItems: "center",
+      alignSelf: "center",
       marginTop: 16,
+      minWidth: 180,
+      maxWidth: 280,
     },
     askAiBtnText: { fontSize: 16, fontWeight: "600" },
     modalOverlay: {

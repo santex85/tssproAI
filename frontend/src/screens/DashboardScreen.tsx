@@ -2392,7 +2392,7 @@ const styles = StyleSheet.create({
   fabWrapper: {
     position: "absolute",
     bottom: 24,
-    left: 20,
+    right: 20,
     borderRadius: 28,
     overflow: "hidden",
     elevation: 8,

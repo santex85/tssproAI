@@ -70,7 +70,8 @@ export function LoginScreen({
       >
         <View style={[styles.flex, contentWrap]}>
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <View style={[styles.cardBase, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: colors.borderRadiusLg, padding: 20 }, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
+            <View style={styles.cardWrapper}>
+            <View style={[styles.cardBase, styles.cardForm, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder, borderWidth: 1, borderRadius: colors.borderRadiusLg, padding: 20 }, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
             <Text style={[styles.title, { color: colors.text }]}>{t("auth.loginTitle")}</Text>
             <Text style={[styles.hint, { color: colors.textMuted }]}>{t("auth.email")}</Text>
             <TextInput
@@ -110,6 +111,7 @@ export function LoginScreen({
               <Text style={[styles.linkText, { color: colors.primary }]}>{t("auth.createAccount")}</Text>
             </TouchableOpacity>
           </View>
+          </View>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -121,7 +123,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1a1a2e", padding: 20 },
   flex: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingTop: 40, paddingBottom: 24 },
+  cardWrapper: { width: "100%", alignItems: "center" },
   cardBase: { borderRadius: 24, marginBottom: 24 },
+  cardForm: { maxWidth: 400, width: "100%" },
   title: { fontSize: 22, fontWeight: "700", color: "#eee", marginBottom: 20 },
   hint: { fontSize: 14, color: "#94a3b8", marginBottom: 6 },
   input: {
