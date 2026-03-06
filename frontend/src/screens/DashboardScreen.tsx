@@ -1524,10 +1524,19 @@ export function DashboardScreen({
         onRequestClose={() => setLanguagePickerVisible(false)}
       >
         <Pressable
-          style={styles.modalBackdrop}
+          style={[
+            styles.languagePickerBackdrop,
+            Platform.OS === "web" && { backdropFilter: "blur(20px)" },
+          ]}
           onPress={() => setLanguagePickerVisible(false)}
         >
-          <Pressable style={[styles.languagePickerCard, { backgroundColor: "#1c1c20", borderColor: "rgba(255, 255, 255, 0.12)" }]} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[
+              styles.languagePickerCard,
+              Platform.OS === "web" && { backdropFilter: "blur(20px)" },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={styles.languagePickerTitle}>{t("settings.language")}</Text>
             {LOCALES.map((loc) => (
               <TouchableOpacity
@@ -2343,12 +2352,21 @@ const styles = StyleSheet.create({
   modalBtnDisabled: { opacity: 0.7 },
   deleteConfirmBox: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#334155" },
   deleteConfirmTitle: { fontSize: 16, fontWeight: "600", color: "#e2e8f0", marginBottom: 4 },
+  languagePickerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
   languagePickerCard: {
     borderRadius: 24,
     padding: 20,
     maxWidth: 320,
     width: "100%",
     borderWidth: 1,
+    backgroundColor: "rgba(30, 30, 30, 0.95)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   languagePickerTitle: { fontSize: 18, fontWeight: "600", color: "#e2e8f0", marginBottom: 16 },
   languagePickerRow: {
