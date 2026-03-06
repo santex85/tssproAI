@@ -5,6 +5,9 @@
 #   --dry-run: only download and show info, do not restore
 # Requires: .env in project root with POSTGRES_*, S3_BACKUP_* (or S3_*). Uses docker compose (local)
 # or docker stack postgres container (st2_postgres) when running on a server with stack deploy.
+#
+# Safety: restore requires interactive TTY (no piping). Before restore, creates a local backup
+# of the current DB to /tmp/smart_trainer_pre_restore_YYYYMMDD_HHMMSS.dump.gz. Fails if backup fails.
 
 set -e
 
@@ -105,33 +108,76 @@ if [ "$DRY_RUN" = true ]; then
   exit 0
 fi
 
-echo "WARNING: This will restore into the running database (--clean --if-exists)."
-echo "Ensure backend is stopped or users are aware of brief inconsistency."
-read -r -p "Continue? [y/N] " ans
-case "$ans" in
-  [yY]|[yY][eE][sS]) ;;
-  *) echo "Aborted."; exit 0 ;;
-esac
+# Require interactive TTY — no piping (e.g. echo y | ./restore) to avoid accidental destructive runs
+if [ ! -t 0 ]; then
+  echo "ERROR: Restore requires interactive mode. Do not pipe input (e.g. echo y | ./restore-from-s3.sh)."
+  echo "Run directly: ./deploy/restore-from-s3.sh latest"
+  exit 1
+fi
+
+echo "WARNING: This will OVERWRITE the running database (--clean --if-exists)."
+echo "Current data will be replaced. Ensure backend is stopped or users are aware."
+echo ""
+read -r -p "Continue? Type 'yes' to confirm: " ans
+if [ "$ans" != "yes" ]; then
+  echo "Aborted. (Expected 'yes', got: ${ans:-empty})"
+  exit 1
+fi
 
 POSTGRES_USER="${POSTGRES_USER:-smart_trainer}"
 POSTGRES_DB="${POSTGRES_DB:-smart_trainer}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
 
 # Prefer stack postgres container (docker stack deploy st2) when present; else use compose
 POSTGRES_CONTAINER=$(docker ps -q -f name=st2_postgres 2>/dev/null | head -1)
+
+# Pre-restore backup: save current DB before overwriting
+PRE_BACKUP="/tmp/smart_trainer_pre_restore_$(date +%Y%m%d_%H%M%S).dump.gz"
+echo "Creating pre-restore backup: $PRE_BACKUP"
+if [ -n "$POSTGRES_CONTAINER" ]; then
+  if ! docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$POSTGRES_CONTAINER" \
+    pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc 2>/dev/null | gzip > "$PRE_BACKUP"; then
+    echo "ERROR: Pre-restore backup failed. Aborting restore."
+    rm -f "$PRE_BACKUP"
+    exit 1
+  fi
+else
+  if ! $COMPOSE_CMD exec -T postgres env PGPASSWORD="$POSTGRES_PASSWORD" \
+    pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc 2>/dev/null | gzip > "$PRE_BACKUP"; then
+    echo "ERROR: Pre-restore backup failed. Aborting restore."
+    rm -f "$PRE_BACKUP"
+    exit 1
+  fi
+fi
+if [ ! -s "$PRE_BACKUP" ]; then
+  echo "ERROR: Pre-restore backup is empty. Aborting."
+  rm -f "$PRE_BACKUP"
+  exit 1
+fi
+echo "Pre-restore backup saved: $PRE_BACKUP ($(wc -c < "$PRE_BACKUP") bytes)"
+
 if [ -n "$POSTGRES_CONTAINER" ]; then
   echo "Using stack postgres container: $POSTGRES_CONTAINER"
   echo "Copying dump into postgres container..."
   docker cp "$RESTORE_FILE" "$POSTGRES_CONTAINER:/tmp/restore.dump.gz"
   echo "Restoring (pg_restore --clean --if-exists)..."
-  docker exec "$POSTGRES_CONTAINER" sh -c "gunzip -c /tmp/restore.dump.gz | pg_restore -U $POSTGRES_USER -d $POSTGRES_DB --clean --if-exists --no-owner || true"
+  if ! docker exec "$POSTGRES_CONTAINER" sh -c "gunzip -c /tmp/restore.dump.gz | pg_restore -U $POSTGRES_USER -d $POSTGRES_DB --clean --if-exists --no-owner"; then
+    echo "ERROR: pg_restore failed. Pre-restore backup is at: $PRE_BACKUP"
+    docker exec "$POSTGRES_CONTAINER" rm -f /tmp/restore.dump.gz
+    exit 1
+  fi
   docker exec "$POSTGRES_CONTAINER" rm -f /tmp/restore.dump.gz
 else
   echo "Using docker compose postgres service..."
   echo "Copying dump into postgres container..."
   $COMPOSE_CMD cp "$RESTORE_FILE" postgres:/tmp/restore.dump.gz
   echo "Restoring (pg_restore --clean --if-exists)..."
-  $COMPOSE_CMD exec -T postgres sh -c "gunzip -c /tmp/restore.dump.gz | pg_restore -U $POSTGRES_USER -d $POSTGRES_DB --clean --if-exists --no-owner || true"
+  if ! $COMPOSE_CMD exec -T postgres sh -c "gunzip -c /tmp/restore.dump.gz | pg_restore -U $POSTGRES_USER -d $POSTGRES_DB --clean --if-exists --no-owner"; then
+    echo "ERROR: pg_restore failed. Pre-restore backup is at: $PRE_BACKUP"
+    $COMPOSE_CMD exec -T postgres rm -f /tmp/restore.dump.gz
+    exit 1
+  fi
   $COMPOSE_CMD exec -T postgres rm -f /tmp/restore.dump.gz
 fi
 
-echo "Restore finished. Verify data and restart backend if needed."
+echo "Restore finished. Pre-restore backup: $PRE_BACKUP (keep for rollback). Verify data and restart backend if needed."

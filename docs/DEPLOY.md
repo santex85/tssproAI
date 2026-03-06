@@ -4,10 +4,10 @@
 
 | Окружение | Домен | Сервер | Ветка в Git | Команда деплоя |
 |-----------|--------|--------|--------------|----------------|
-| **Dev** | https://dev.tsspro.tech | 209.38.17.171 (root) | `dev` (или текущая) | `make deploy-dev` / `make deploy-dev-no-push` |
+| **Dev** | https://dev.tsspro.tech | 209.38.17.171 (root) | `dev` (или текущая) | `make deploy-dev` / `make deploy-dev-no-push` (БД сохраняется) |
 | **Production** | https://tsspro.tech | 167.71.74.220 (root) | `main` | `make deploy` |
 
-- **Dev** — тестирование фич и доработок. Работаем в ветке `dev`, выкатываем её на dev-сервер, проверяем. Подробнее: [Цикл разработки (WORKFLOW)](WORKFLOW.md) и [deploy/README-dev.md](../deploy/README-dev.md).
+- **Dev** — тестирование фич и доработок. Работаем в ветке `dev`, выкатываем её на dev-сервер, проверяем. Dev БД сохраняется при деплое; restore из S3 — только вручную.
 - **Production** — боевой сервер. В продакшен попадает только код из `main` после мержа из `dev` и проверки на dev.
 
 Путь на обоих серверах: `/root/smart_trainer`. На каждом свой `.env` (DOMAIN, CORS_ORIGINS, секреты).
@@ -236,19 +236,23 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 **Внимание:** восстановление перезаписывает текущую БД (`--clean --if-exists`). Остановите backend или предупредите пользователей о краткой недоступности.
 
+**Безопасность:** скрипт требует интерактивный запуск (нельзя передавать `echo y |`). Перед restore создаётся локальный бэкап текущей БД в `/tmp/smart_trainer_pre_restore_YYYYMMDD_HHMMSS.dump.gz`. При ошибке restore этот файл можно использовать для отката.
+
 1. На сервере в каталоге проекта: `cd /root/smart_trainer` (или ваш путь).
-2. Запуск:
+2. Запуск (интерактивно):
    ```bash
    chmod +x deploy/restore-from-s3.sh
    ./deploy/restore-from-s3.sh latest
    ```
    Вместо `latest` можно указать полный ключ объекта в S3, например `backups/postgres/smart_trainer_20250301_0300.dump.gz`.
-3. Скрипт загружает `.env`, скачивает дамп, запрашивает подтверждение и выполняет `pg_restore`. Для проверки без восстановления: `./deploy/restore-from-s3.sh latest --dry-run`.
+3. Скрипт загружает `.env`, скачивает дамп, запрашивает подтверждение (нужно ввести `yes`), создаёт pre-restore backup и выполняет `pg_restore`. Для проверки без восстановления: `./deploy/restore-from-s3.sh latest --dry-run`.
 4. После восстановления проверьте данные и при необходимости перезапустите backend: `docker compose -f docker-compose.yml -f docker-compose.prod.yml restart backend`.
 
 На серверах с `docker stack deploy` (prod, dev) скрипт автоматически определяет контейнер `st2_postgres` и выполняет `docker cp` / `docker exec` вместо `docker compose`.
 
 ### Восстановление базы на dev из S3 (продовые дампы)
+
+**Важно:** обычный `make deploy-dev` и `make deploy-dev-no-push` **не трогают** dev БД. Текущие данные сохраняются. Restore из S3 — только ручное действие.
 
 Чтобы поднять на dev-сервере копию продовой базы (без ручного ввода данных):
 
@@ -260,9 +264,11 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 2. **На dev-сервере** должен быть установлен AWS CLI (`aws s3`). Если нет: `apt-get update && apt-get install -y awscli` (или аналог для вашего дистрибутива).
 
-3. **Запуск восстановления:**
-   - С локальной машины (при настроенном SSH на dev): `make restore-dev-from-s3`
-   - Или по SSH на dev: `cd /root/smart_trainer && ./deploy/restore-from-s3.sh latest`
+3. **Запуск восстановления (ручной, destructive):**
+   - С локальной машины (интерактивно, с TTY): `make restore-dev-from-s3` — SSH на dev, останавливает backend, запускает скрипт, запрашивает подтверждение и создаёт pre-restore backup.
+   - Или по SSH на dev: `cd /root/smart_trainer && docker service scale st2_backend=0 && sleep 5 && ./deploy/restore-from-s3.sh latest && docker service scale st2_backend=1`
+
+Скрипт создаёт бэкап текущей dev БД в `/tmp/smart_trainer_pre_restore_*.dump.gz` перед restore. Требует ввести `yes` для подтверждения. Нельзя вызывать через pipe (`echo y |`).
 
 После restore данные на dev будут копией прода. Не используйте dev для отладки под реальными пользователями без обезличивания, если это требуется политикой.
 

@@ -79,9 +79,6 @@ migrate-prod:
 # Для dev-сервера: какую ветку катить (текущая). Для prod не задаём — на сервере остаётся main.
 DEPLOY_BRANCH ?=
 
-# Dev: set SKIP_RESTORE=1 to skip DB restore after deploy-dev
-SKIP_RESTORE ?= 0
-
 # Деплой на production: пуш main, на сервере git pull (main), build, stack deploy, миграции.
 # Переопределить: make deploy DEPLOY_HOST=1.2.3.4 DEPLOY_PATH=/home/app/smart_trainer
 deploy:
@@ -97,7 +94,7 @@ deploy-no-push:
 	else \
 		BRANCH_CMD='git pull'; \
 	fi; \
-	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && $$BRANCH_CMD && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy $(STACK_DEPLOY_FILES) st2 && sleep 25 && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-smart_trainer}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-smart_trainer}\" && docker run --rm --network st2_backend-db -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest alembic upgrade head && docker service update --force st2_frontend st2_backend"
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && $$BRANCH_CMD && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy $(STACK_DEPLOY_FILES) st2 && sleep 25 && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-smart_trainer}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-smart_trainer}\" && docker run --rm --network st2_backend-db -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest alembic upgrade head && docker service update --force st2_frontend && docker service update --force st2_backend"
 	@if [ -n '$(DEPLOY_BRANCH)' ]; then echo "Деплой завершён: https://dev.tsspro.tech"; else echo "Деплой завершён: https://tsspro.tech"; fi
 
 # Однократно: снять стек и удалить overlay-сети, чтобы при следующем deploy они создались с attachable: true (для docker run миграций).
@@ -125,23 +122,24 @@ ensure-dev-server:
 		fi"
 
 # Deploy to dev server (dev.tsspro.tech): пуш текущей ветки (обычно dev), на сервере checkout этой ветки и deploy.
+# Dev БД сохраняется; restore из S3 — только вручную: make restore-dev-from-s3
 deploy-dev: ensure-dev-server
 	git push origin $(shell git branch --show-current)
 	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
-	@if [ "$(SKIP_RESTORE)" != "1" ]; then $(MAKE) restore-dev-from-s3; else echo "SKIP_RESTORE=1, skipping dev DB restore"; fi
 
 # Deploy to dev server without git push (на сервере всё равно будет checkout текущей ветки и pull).
 deploy-dev-no-push: ensure-dev-server
 	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
-	@if [ "$(SKIP_RESTORE)" != "1" ]; then $(MAKE) restore-dev-from-s3; else echo "SKIP_RESTORE=1, skipping dev DB restore"; fi
 
 # Add or update NODE_MEMORY_MB=768 in .env on dev server (for 1GB RAM). Run once, then make deploy-dev.
 dev-server-set-node-memory:
 	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "grep -q '^NODE_MEMORY_MB=' $(DEV_DEPLOY_PATH)/.env 2>/dev/null && sed -i 's/^NODE_MEMORY_MB=.*/NODE_MEMORY_MB=768/' $(DEV_DEPLOY_PATH)/.env || echo 'NODE_MEMORY_MB=768' >> $(DEV_DEPLOY_PATH)/.env; echo 'NODE_MEMORY_MB=768 set in .env on dev server.'"
 
-# Restore dev DB from prod backups in S3. Requires S3_BACKUP_* in .env on dev and aws cli on dev. Runs restore-from-s3.sh on dev (stack postgres).
+# Restore dev DB from prod backups in S3. MANUAL ONLY — destructive. Requires S3_BACKUP_* in .env on dev and aws cli.
+# Script creates pre-restore backup and requires interactive confirmation. Use: make restore-dev-from-s3
 restore-dev-from-s3:
-	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "cd $(DEV_DEPLOY_PATH) && set -e; trap 'docker service scale st2_backend=1 >/dev/null 2>&1 || true' EXIT; docker service scale st2_backend=0; sleep 5; echo y | ./deploy/restore-from-s3.sh latest"
+	@echo "WARNING: restore-dev-from-s3 overwrites dev DB. Script will create backup first and prompt for confirmation."
+	ssh -t $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "cd $(DEV_DEPLOY_PATH) && set -e; trap 'docker service scale st2_backend=1 >/dev/null 2>&1 || true' EXIT; docker service scale st2_backend=0; sleep 5; ./deploy/restore-from-s3.sh latest"
 
 shell-backend:
 	docker compose exec backend sh
