@@ -530,7 +530,7 @@ function OverviewSection({
       <View style={styles.cardRow}>
         <View style={[styles.card, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder, borderRadius: colors.borderRadiusLg }, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
           <Text style={[styles.cardValue, { color: colors.text }]}>
-            {overview.avg_sleep_hours != null ? `${overview.avg_sleep_hours} ч` : "—"}
+            {overview.avg_sleep_hours != null ? `${overview.avg_sleep_hours} ${t("analytics.hoursShort")}` : "—"}
           </Text>
           <Text style={[styles.cardLabel, { color: colors.textMuted }]}>{t("analytics.avgSleep")}</Text>
         </View>
@@ -567,8 +567,8 @@ function OverviewSection({
       )}
       {goals && Object.keys(goals).length > 0 && (
         <Text style={[styles.hint, { color: colors.textMuted }]}>
-          Цели: {goals.calorie_goal != null ? `Ккал ${goals.calorie_goal}` : ""}
-          {goals.protein_goal != null ? ` · Белок ${goals.protein_goal} г` : ""}
+          {t("analytics.goalsLabel")}:{goals.calorie_goal != null ? ` ${t("analytics.goalsCalorie").replace("{{value}}", String(goals.calorie_goal))}` : ""}
+          {goals.protein_goal != null ? ` · ${t("analytics.goalsProtein").replace("{{value}}", String(goals.protein_goal))}` : ""}
         </Text>
       )}
     </View>
@@ -602,7 +602,7 @@ function SleepSection({
   }
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("wellness.sleep")} (ч)</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("wellness.sleep")} ({t("analytics.hoursShort")})</Text>
       <View style={[styles.chartWrap, { height: CHART_HEIGHT }]}>
         <LineChart
           data={lineData}
