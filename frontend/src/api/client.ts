@@ -1020,7 +1020,7 @@ export async function runOrchestrator(
       : new Date().getHours();
   return api("/api/v1/chat/orchestrator/run", {
     method: "POST",
-    body: { locale: locale ?? "ru", client_local_hour: hour },
+    body: { locale: locale ?? "en", client_local_hour: hour },
   });
 }
 

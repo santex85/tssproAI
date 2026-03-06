@@ -15,9 +15,9 @@ function get(obj: Record<string, unknown>, path: string): string | undefined {
 }
 
 /**
- * Translate by key. Uses Russian as fallback when used outside I18nProvider.
+ * Translate by key. Uses English as fallback when used outside I18nProvider.
  * Prefer useTranslation() in components so locale changes re-render.
  */
 export function t(key: string): string {
-  return get(messages.ru as Record<string, unknown>, key) ?? key;
+  return get(messages.en as Record<string, unknown>, key) ?? key;
 }

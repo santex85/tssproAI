@@ -5,12 +5,12 @@
 
 const SUPPORTED_API_LOCALES = ["ru", "en", "de", "fr", "es", "it", "pt", "th"] as const;
 
-let apiLocale = "ru";
+let apiLocale = "en";
 
 export function setApiLocale(locale: string): void {
   apiLocale = SUPPORTED_API_LOCALES.includes(locale as (typeof SUPPORTED_API_LOCALES)[number])
     ? locale
-    : "ru";
+    : "en";
 }
 
 export function getApiLocale(): string {
