@@ -6,8 +6,9 @@ cannot be overridden by Level 2 (TSS, CTL, ATL). Level 3: polarised intensity (S
 import asyncio
 import json
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, time, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
@@ -29,35 +30,19 @@ from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 
-RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "decision": {"type": "string", "enum": ["Go", "Modify", "Skip"]},
-        "reason": {"type": "string"},
-        "modified_plan": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string"},
-                "start_date": {"type": "string"},
-                "end_date": {"type": "string"},
-                "description": {"type": "string"},
-                "type": {"type": "string"},
-            },
-            "required": ["title", "start_date"],
-            "nullable": True,
-        },
-        "suggestions_next_days": {"type": "string", "nullable": True},
-        "evening_tips": {"type": "string", "nullable": True},
-        "plan_tomorrow": {"type": "string", "nullable": True},
-    },
-    "required": ["decision", "reason"],
-}
+def _get_response_schema() -> dict:
+    """Derive JSON schema from Pydantic model to avoid duplication."""
+    schema = OrchestratorResponse.model_json_schema()
+    # Remove top-level title; keep $defs for nested ModifiedPlanItem
+    schema.pop("title", None)
+    return schema
+
 
 GENERATION_CONFIG = {
     "temperature": 0.3,
     "max_output_tokens": 1024,
     "response_mime_type": "application/json",
-    "response_schema": RESPONSE_SCHEMA,
+    "response_schema": _get_response_schema(),
 }
 
 SAFETY_SETTINGS = {
@@ -163,41 +148,94 @@ def _parse_llm_response(text: str) -> OrchestratorResponse:
     text = text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    data = json.loads(text)
-    decision = _normalize_decision(data.get("decision", "Go"))
-    modified = data.get("modified_plan")
-    modified_item = None
-    if modified and isinstance(modified, dict) and modified.get("title") and modified.get("start_date"):
-        try:
-            modified_item = ModifiedPlanItem.model_validate(modified, strict=False)
-        except Exception:
-            modified_item = None
-    reason = str(data.get("reason") or "")
-    if len(reason) > 1000:
-        reason = reason[:1000]
-    suggestions = data.get("suggestions_next_days")
-    if suggestions is not None:
-        suggestions = str(suggestions) if not isinstance(suggestions, str) else suggestions
-        if len(suggestions) > 2000:
-            suggestions = suggestions[:2000]
-    evening_tips = data.get("evening_tips")
-    if evening_tips is not None:
-        evening_tips = str(evening_tips) if not isinstance(evening_tips, str) else evening_tips
-        if len(evening_tips) > 1000:
-            evening_tips = evening_tips[:1000]
-    plan_tomorrow = data.get("plan_tomorrow")
-    if plan_tomorrow is not None:
-        plan_tomorrow = str(plan_tomorrow) if not isinstance(plan_tomorrow, str) else plan_tomorrow
-        if len(plan_tomorrow) > 1000:
-            plan_tomorrow = plan_tomorrow[:1000]
-    return OrchestratorResponse(
-        decision=decision,
-        reason=reason,
-        modified_plan=modified_item,
-        suggestions_next_days=suggestions,
-        evening_tips=evening_tips if isinstance(evening_tips, str) else None,
-        plan_tomorrow=plan_tomorrow if isinstance(plan_tomorrow, str) else None,
-    )
+    try:
+        return OrchestratorResponse.model_validate_json(text)
+    except Exception:
+        data = json.loads(text)
+        decision = _normalize_decision(data.get("decision", "Go"))
+        modified = data.get("modified_plan")
+        modified_item = None
+        if modified and isinstance(modified, dict) and modified.get("title") and modified.get("start_date"):
+            try:
+                modified_item = ModifiedPlanItem.model_validate(modified, strict=False)
+            except Exception:
+                modified_item = None
+        reason = str(data.get("reason") or "")[:1000]
+        suggestions = data.get("suggestions_next_days")
+        if suggestions is not None:
+            suggestions = str(suggestions)[:2000]
+        evening_tips = data.get("evening_tips")
+        evening_tips = str(evening_tips)[:1000] if evening_tips is not None and isinstance(evening_tips, str) else None
+        plan_tomorrow = data.get("plan_tomorrow")
+        plan_tomorrow = str(plan_tomorrow)[:1000] if plan_tomorrow is not None and isinstance(plan_tomorrow, str) else None
+        return OrchestratorResponse(
+            decision=decision,
+            reason=reason,
+            modified_plan=modified_item,
+            suggestions_next_days=suggestions,
+            evening_tips=evening_tips,
+            plan_tomorrow=plan_tomorrow,
+        )
+
+
+def _format_food_entries(entries: list[dict]) -> str:
+    if not entries:
+        return "(none)"
+    lines = []
+    for e in entries:
+        name = e.get("name") or "?"
+        cal = e.get("calories") or 0
+        p = e.get("protein_g") or 0
+        f = e.get("fat_g") or 0
+        c = e.get("carbs_g") or 0
+        lines.append(f"- {name}: {cal:.0f} kcal (P{p:.0f} F{f:.0f} C{c:.0f})")
+    return "\n".join(lines)
+
+
+def _format_recent_workouts(workouts: list[dict]) -> str:
+    if not workouts:
+        return "(none)"
+    lines = []
+    for w in workouts:
+        d = w.get("date") or "?"
+        name = w.get("name") or "Workout"
+        dist = w.get("distance_km")
+        tss = w.get("tss")
+        dist_str = f", {dist} km" if dist is not None else ""
+        tss_str = f", TSS {tss}" if tss is not None else ""
+        lines.append(f"- {d}: {name}{dist_str}{tss_str}")
+    return "\n".join(lines)
+
+
+def _format_wellness_history(history: list[dict]) -> str:
+    if not history:
+        return "(none)"
+    lines = []
+    for h in history:
+        d = h.get("date") or "?"
+        sleep = h.get("sleep_hours")
+        hrv = h.get("hrv")
+        rhr = h.get("rhr")
+        parts = []
+        if sleep is not None:
+            parts.append(f"Sleep {sleep}h")
+        if hrv is not None:
+            parts.append(f"HRV {hrv}")
+        if rhr is not None:
+            parts.append(f"RHR {rhr}")
+        lines.append(f"- {d}: {', '.join(parts) or '—'}")
+    return "\n".join(lines)
+
+
+def _format_planned_workouts(events: list[dict]) -> str:
+    if not events:
+        return "(none)"
+    lines = []
+    for e in events:
+        title = e.get("title") or "?"
+        t = e.get("type") or "workout"
+        lines.append(f"- {title} ({t})")
+    return "\n".join(lines)
 
 
 def _build_context(
@@ -213,25 +251,28 @@ def _build_context(
     current_local_hour: int | None = None,
 ) -> str:
     hour_str = str(current_local_hour) if current_local_hour is not None else "not provided"
+    profile_str = ", ".join(f"{k}={v}" for k, v in (athlete_profile or {}).items()) or "(none)"
+    wellness_str = ", ".join(f"{k}={v}" for k, v in (wellness_today or {}).items() if v is not None) or "(none)"
+    load_str = ", ".join(f"{k}={v}" for k, v in (ctl_atl_tsb or {}).items() if v is not None) or "(none)"
     parts = [
         "## Current local hour (0-23, athlete's local time)",
         hour_str,
         "## Athlete profile (weight, height, age, FTP, name, sex)",
-        json.dumps(athlete_profile or {}, default=str),
+        profile_str,
         "## Food today (sum)",
         f"Calories: {food_sum.get('calories', 0):.0f}, Protein: {food_sum.get('protein_g', 0):.0f}g, Fat: {food_sum.get('fat_g', 0):.0f}g, Carbs: {food_sum.get('carbs_g', 0):.0f}g",
         "## Food today (entries)",
-        json.dumps(food_entries or [], default=str),
+        _format_food_entries(food_entries or []),
         "## Wellness today",
-        json.dumps(wellness_today or {}),
+        wellness_str,
         "## Load (CTL/ATL/TSB)",
-        json.dumps(ctl_atl_tsb or {}),
+        load_str,
         "## Wellness history (last 7 days)",
-        json.dumps(wellness_history or [], default=str),
+        _format_wellness_history(wellness_history or []),
         "## Planned workouts today (Intervals)",
-        json.dumps(events_today),
+        _format_planned_workouts(events_today),
         "## Recent workouts (manual/FIT, if any)",
-        json.dumps(recent_workouts or [], default=str),
+        _format_recent_workouts(recent_workouts or []),
     ]
     if had_workout_today is not None:
         parts.append("## Workout already done today (yes/no)")
@@ -253,6 +294,19 @@ def _is_evening(client_local_hour: int | None) -> bool:
     return client_local_hour >= getattr(settings, "orchestrator_evening_from_hour", 18)
 
 
+def _day_bounds_utc(d: date, tz_name: str) -> tuple[datetime, datetime]:
+    """Return (start_utc, end_utc) for the given date in user's timezone.
+    start_utc = 00:00 local, end_utc = 00:00 next day local (exclusive upper bound).
+    """
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else timezone.utc
+    except Exception:
+        tz = timezone.utc
+    start_local = datetime.combine(d, time.min, tzinfo=tz)
+    end_local = datetime.combine(d + timedelta(days=1), time.min, tzinfo=tz)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+
+
 async def run_daily_decision(
     session: AsyncSession,
     user_id: int,
@@ -268,17 +322,20 @@ async def run_daily_decision(
     """
     today = today or date.today()
     is_evening = _is_evening(client_local_hour)
-    oldest_food = today
-    newest_food = today
     wellness_from = today - timedelta(days=7)
     from_date = today - timedelta(days=14)
-    from_dt = datetime.combine(from_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-    to_dt = datetime.combine(today + timedelta(days=1), datetime.min.time()).replace(tzinfo=timezone.utc)
+
+    # Fetch user first to get timezone for correct daily bounds (UTC vs user local)
+    r_user = await session.execute(select(User.email, User.is_premium, User.timezone).where(User.id == user_id))
+    user_row = r_user.one_or_none()
+    user_tz = (user_row[2] or "UTC").strip() or "UTC" if user_row and len(user_row) > 2 else "UTC"
+    today_start_utc, today_end_utc = _day_bounds_utc(today, user_tz)
+    from_start_utc, _ = _day_bounds_utc(from_date, user_tz)
+    _, to_start_utc = _day_bounds_utc(today + timedelta(days=1), user_tz)
 
     (
         r_food,
         r_wellness,
-        r_user,
         r_prof,
         r_fe,
         r_wh,
@@ -293,8 +350,8 @@ async def run_daily_decision(
                 FoodLog.carbs_g,
             ).where(
                 FoodLog.user_id == user_id,
-                FoodLog.timestamp >= datetime.combine(oldest_food, datetime.min.time()),
-                FoodLog.timestamp < datetime.combine(newest_food + timedelta(days=1), datetime.min.time()),
+                FoodLog.timestamp >= today_start_utc,
+                FoodLog.timestamp < today_end_utc,
             )
         ),
         session.execute(
@@ -303,13 +360,12 @@ async def run_daily_decision(
                 WellnessCache.date == today,
             )
         ),
-        session.execute(select(User.email, User.is_premium).where(User.id == user_id)),
         session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id)),
         session.execute(
             select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.extended_nutrients).where(
                 FoodLog.user_id == user_id,
-                FoodLog.timestamp >= datetime.combine(today, datetime.min.time()),
-                FoodLog.timestamp < datetime.combine(today + timedelta(days=1), datetime.min.time()),
+                FoodLog.timestamp >= today_start_utc,
+                FoodLog.timestamp < today_end_utc,
             )
         ),
         session.execute(
@@ -322,8 +378,8 @@ async def run_daily_decision(
         session.execute(
             select(Workout).where(
                 Workout.user_id == user_id,
-                Workout.start_date >= from_dt,
-                Workout.start_date < to_dt,
+                Workout.start_date >= from_start_utc,
+                Workout.start_date < to_start_utc,
             ).order_by(Workout.start_date.desc()).limit(10)
         ),
         session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id)),
@@ -357,7 +413,6 @@ async def run_daily_decision(
     if wellness_today is None:
         wellness_today = {}
 
-    user_row = r_user.one_or_none()
     email = user_row[0] if user_row else None
     is_premium = bool(user_row[1]) if user_row and len(user_row) > 1 else False
     profile = r_prof.scalar_one_or_none()
