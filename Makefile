@@ -97,7 +97,7 @@ deploy-no-push:
 	else \
 		BRANCH_CMD='git pull'; \
 	fi; \
-	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && $$BRANCH_CMD && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy $(STACK_DEPLOY_FILES) st2 && sleep 25 && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-smart_trainer}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-smart_trainer}\" && docker run --rm --network st2_backend-db -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest alembic upgrade head"
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && $$BRANCH_CMD && $(COMPOSE_PROD) build && set -a && . ./.env && set +a && docker stack deploy $(STACK_DEPLOY_FILES) st2 && sleep 25 && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-smart_trainer}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-smart_trainer}\" && docker run --rm --network st2_backend-db -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest alembic upgrade head && docker service update --force st2_frontend st2_backend"
 	@if [ -n '$(DEPLOY_BRANCH)' ]; then echo "Деплой завершён: https://dev.tsspro.tech"; else echo "Деплой завершён: https://tsspro.tech"; fi
 
 # Однократно: снять стек и удалить overlay-сети, чтобы при следующем deploy они создались с attachable: true (для docker run миграций).
