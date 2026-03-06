@@ -141,7 +141,7 @@ dev-server-set-node-memory:
 
 # Restore dev DB from prod backups in S3. Requires S3_BACKUP_* in .env on dev and aws cli on dev. Runs restore-from-s3.sh on dev (stack postgres).
 restore-dev-from-s3:
-	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "cd $(DEV_DEPLOY_PATH) && docker service scale st2_backend=0 && sleep 5 && echo y | ./deploy/restore-from-s3.sh latest && docker service scale st2_backend=1"
+	ssh $(DEV_DEPLOY_USER)@$(DEV_DEPLOY_HOST) "cd $(DEV_DEPLOY_PATH) && set -e; trap 'docker service scale st2_backend=1 >/dev/null 2>&1 || true' EXIT; docker service scale st2_backend=0; sleep 5; echo y | ./deploy/restore-from-s3.sh latest"
 
 shell-backend:
 	docker compose exec backend sh
