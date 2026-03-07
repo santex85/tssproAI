@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../theme";
+import { useTheme, contentWrap } from "../theme";
 import { useTranslation } from "../i18n";
 import {
   getBillingStatus,
@@ -125,7 +125,7 @@ export function BillingScreen({
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>{t("billing.title")}</Text>
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView style={[styles.scroll, contentWrap]} contentContainerStyle={styles.content}>
         <View style={[styles.card, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("pricing.currentPlan")}</Text>
           <View style={styles.planRow}>

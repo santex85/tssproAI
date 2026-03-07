@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     encryption_key: str = ""
     secret_key: str = "change-me-in-production"
     app_env: str = "development"  # "production" enables strict checks (ENCRYPTION_KEY, etc.)
+    dev_premium_toggle_enabled: bool = False  # True: show PRO toggle and allow PATCH /me/premium (e.g. dev/stripe testing)
     # JWT: use RS256 when JWT_PRIVATE_KEY and JWT_PUBLIC_KEY are set; otherwise HS256 with SECRET_KEY
     jwt_algorithm: str = "HS256"
     jwt_private_key: str = ""  # PEM string for RS256 (multi-line in .env: use \n)
