@@ -9,7 +9,7 @@ export function HeroSection({ appUrl }: { appUrl: string }) {
 
       <div className="max-w-7xl mx-auto relative">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               AI coach for{" "}
               <span className="text-emerald-500">endurance athletes</span>
@@ -50,14 +50,14 @@ export function HeroSection({ appUrl }: { appUrl: string }) {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <div className="relative bg-gradient-to-br from-white/10 to-white/[0.02] border border-white/20 rounded-2xl p-2 backdrop-blur shadow-2xl">
               <div className="bg-[#0f0f0f] rounded-xl overflow-hidden">
                 <DashboardPreview />
               </div>
             </div>
 
-            <div className="absolute top-2 -left-2 lg:top-4 lg:-left-8 bg-[#0f0f0f]/95 border border-white/20 rounded-lg p-3 shadow-2xl max-w-[160px] backdrop-blur">
+            <div className="absolute top-2 left-2 lg:top-4 lg:-left-8 bg-[#0f0f0f]/95 border border-white/20 rounded-lg p-3 shadow-2xl max-w-[160px] backdrop-blur">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-6 h-6 rounded-md bg-emerald-600/20 flex items-center justify-center">
                   <Activity size={12} className="text-emerald-500" />
@@ -68,7 +68,7 @@ export function HeroSection({ appUrl }: { appUrl: string }) {
               <div className="text-[10px] text-white/60">Logged from photo</div>
             </div>
 
-            <div className="absolute bottom-2 -right-2 lg:bottom-4 lg:-right-8 bg-[#0f0f0f]/95 border border-white/20 rounded-lg p-3 shadow-2xl max-w-[160px] backdrop-blur">
+            <div className="absolute bottom-2 right-2 lg:bottom-4 lg:-right-8 bg-[#0f0f0f]/95 border border-white/20 rounded-lg p-3 shadow-2xl max-w-[160px] backdrop-blur">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-6 h-6 rounded-md bg-blue-600/20 flex items-center justify-center">
                   <Brain size={12} className="text-blue-500" />

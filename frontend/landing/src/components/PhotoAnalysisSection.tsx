@@ -25,7 +25,7 @@ export function PhotoAnalysisSection() {
     <section className="py-20 px-6 bg-white/[0.02]">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
               Snap a photo.{" "}
               <span className="text-emerald-500">Get instant nutrition.</span>
@@ -47,7 +47,7 @@ export function PhotoAnalysisSection() {
               ))}
             </ul>
           </div>
-          <div className="relative">
+          <div className="relative min-w-0">
             <div className="relative bg-gradient-to-br from-white/10 to-white/[0.02] border border-white/20 rounded-2xl p-2 backdrop-blur shadow-2xl">
               <div className="bg-[#0f0f0f] rounded-xl overflow-hidden">
                 <PhotoAnalysisPreview />

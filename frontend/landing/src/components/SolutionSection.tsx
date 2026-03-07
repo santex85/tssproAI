@@ -10,8 +10,8 @@ export function SolutionSection() {
         <p className="text-xl text-white/60 max-w-3xl mx-auto text-center mb-12">
           tssAI brings nutrition, sleep, wellness, and training load together. AI doesn&apos;t just answer — it considers your full context and tells you: GO, MODIFY, or SKIP.
         </p>
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-400">
+        <div className="flex justify-center px-2">
+          <div className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 sm:px-6 py-3 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-400 max-w-full text-center sm:text-left">
             <span className="font-semibold">Result:</span> Daily training decisions based on real data
           </div>
         </div>
