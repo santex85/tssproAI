@@ -3,6 +3,7 @@ AI Orchestrator: aggregates nutrition, wellness, load; applies 3-level hierarchy
 returns Go/Modify/Skip with optional modified plan. TZ: Level 1 (sleep, HRV, RHR, calories)
 cannot be overridden by Level 2 (TSS, CTL, ATL). Level 3: polarised intensity (Seiler).
 """
+import copy
 import json
 import logging
 from datetime import date, datetime, timedelta, time, timezone
@@ -29,12 +30,36 @@ from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 
+
+def _inline_schema_for_gemini(schema: dict) -> dict:
+    """Inline $ref from $defs; Gemini API does not support $defs/$ref."""
+    defs_map = schema.get("$defs", {})
+    if not defs_map:
+        return {k: v for k, v in schema.items() if k != "title"}
+
+    def resolve(obj):
+        if isinstance(obj, dict):
+            if "$ref" in obj and len(obj) == 1:
+                ref = obj["$ref"]
+                if ref.startswith("#/$defs/"):
+                    name = ref.split("/")[-1]
+                    return resolve(copy.deepcopy(defs_map.get(name, obj)))
+            return {k: resolve(v) for k, v in obj.items() if k not in ("$defs", "title")}
+        if isinstance(obj, list):
+            return [resolve(x) for x in obj]
+        return obj
+
+    result = resolve(copy.deepcopy(schema))
+    result.pop("$defs", None)
+    result.pop("title", None)
+    return result
+
+
 def _get_response_schema() -> dict:
     """Derive JSON schema from Pydantic model to avoid duplication."""
     schema = OrchestratorResponse.model_json_schema()
-    # Remove top-level title; keep $defs for nested ModifiedPlanItem
     schema.pop("title", None)
-    return schema
+    return _inline_schema_for_gemini(schema)
 
 
 GENERATION_CONFIG = {

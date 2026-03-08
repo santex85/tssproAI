@@ -59,3 +59,12 @@
 **Причина:** Gemini API не вызывается успешно (пустой GOOGLE_GEMINI_API_KEY, ошибка модели, квота, сеть). try/except ловит исключение и возвращает SKIP.  
 **Решение:** Ранний выход при пустом API-ключе с явным логом; предупреждение при старте приложения; улучшенное логирование исключения (str(e)) в except.  
 **Статус:** Исправлено
+
+### 5. Orchestrator ValueError: Unknown field for Schema: $defs
+
+**Дата:** 2026-03-08  
+**Место:** `backend/app/services/orchestrator.py`, `run_daily_decision` (GenerationConfig, response_schema)  
+**Ошибка:** `ValueError: Unknown field for Schema: $defs` при вызове Gemini.  
+**Причина:** Gemini API не поддерживает `$defs` и `$ref` в response_schema; Pydantic генерирует их для вложенных типов.  
+**Решение:** Функция `_inline_schema_for_gemini` инлайнит все `$ref` из `$defs` и удаляет `$defs`/`title` перед передачей в GenerationConfig.  
+**Статус:** Исправлено
