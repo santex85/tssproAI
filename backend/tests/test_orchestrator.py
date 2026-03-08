@@ -1,11 +1,13 @@
-"""Tests for orchestrator helpers: _normalize_decision, _parse_llm_response, _build_system_prompt, _build_context."""
+"""Tests for orchestrator helpers: _normalize_decision, _parse_llm_response, _build_system_prompt, _build_context, _get_response_schema."""
 
+import json
 import pytest
 
 from app.schemas.orchestrator import Decision
 from app.services.orchestrator import (
     _build_context,
     _build_system_prompt,
+    _get_response_schema,
     _normalize_decision,
     _parse_llm_response,
 )
@@ -119,3 +121,69 @@ def test_build_context_hour_not_provided():
     )
     assert "## Current local hour" in ctx
     assert "not provided" in ctx
+
+
+# --- _get_response_schema: Gemini protobuf compatibility ---
+
+
+def test_get_response_schema_no_defs_refs():
+    """Schema contains no $defs or $ref (Gemini does not support them)."""
+    schema = _get_response_schema()
+    schema_str = json.dumps(schema)
+    assert "$defs" not in schema_str
+    assert "$ref" not in schema_str
+
+
+def test_get_response_schema_no_maxlength():
+    """Schema contains no maxLength (Gemini protobuf does not support it)."""
+    schema = _get_response_schema()
+    assert "maxLength" not in json.dumps(schema)
+
+
+def test_get_response_schema_no_anyof():
+    """Schema contains no anyOf (Gemini protobuf does not support it)."""
+    schema = _get_response_schema()
+    assert "anyOf" not in json.dumps(schema)
+
+
+def test_get_response_schema_no_additional_properties():
+    """Schema contains no additionalProperties (Gemini protobuf does not support it)."""
+    schema = _get_response_schema()
+    assert "additionalProperties" not in json.dumps(schema)
+
+
+def test_get_response_schema_nullable_for_optional_fields():
+    """Optional fields are represented with nullable: true."""
+    schema = _get_response_schema()
+    props = schema.get("properties", {})
+    assert props.get("modified_plan", {}).get("nullable") is True
+    assert props.get("suggestions_next_days", {}).get("nullable") is True
+    assert props.get("evening_tips", {}).get("nullable") is True
+    assert props.get("plan_tomorrow", {}).get("nullable") is True
+
+
+def test_get_response_schema_modified_plan_has_title():
+    """ModifiedPlanItem schema preserves the title property."""
+    schema = _get_response_schema()
+    mp = schema.get("properties", {}).get("modified_plan", {})
+    mp_props = mp.get("properties", {})
+    assert "title" in mp_props
+    assert mp_props["title"].get("type") == "string"
+
+
+def test_get_response_schema_modified_plan_required():
+    """ModifiedPlanItem required includes title and start_date."""
+    schema = _get_response_schema()
+    mp = schema.get("properties", {}).get("modified_plan", {})
+    required = mp.get("required", [])
+    assert "title" in required
+    assert "start_date" in required
+
+
+def test_get_response_schema_sdk_accepts():
+    """GENERATION_CONFIG response_schema is accepted by Gemini SDK."""
+    from app.services.orchestrator import GENERATION_CONFIG
+
+    from google.generativeai.types import generation_types
+
+    generation_types.to_generation_config_dict(GENERATION_CONFIG)

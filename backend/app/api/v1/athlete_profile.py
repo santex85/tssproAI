@@ -21,7 +21,7 @@ def _profile_response(profile: AthleteProfile | None, user: User) -> dict:
     """Build GET response: manual profile fields."""
     base = {
         "is_premium": user.is_premium,
-        "dev_can_toggle_premium": settings.app_env != "production",
+        "dev_can_toggle_premium": settings.app_env != "production" or settings.dev_premium_toggle_enabled,
         "locale": user.locale or "ru",
     }
     if not profile:

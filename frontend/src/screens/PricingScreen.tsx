@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../theme";
+import { useTheme, contentWrap } from "../theme";
 import { useTranslation } from "../i18n";
 import { createCheckoutSession, getSubscription, type BillingPlan } from "../api/client";
 
@@ -74,7 +74,7 @@ export function PricingScreen({
         </TouchableOpacity>
       </View>
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, contentWrap]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >

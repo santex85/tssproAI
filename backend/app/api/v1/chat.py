@@ -1,6 +1,5 @@
 """Chat with AI coach: history, send message, optional orchestrator run, optional FIT upload."""
 
-import asyncio
 import json
 from datetime import date, datetime, timedelta, time, timezone
 from typing import Annotated
@@ -189,50 +188,40 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
     history_start_utc, _ = _day_bounds_utc(today_local - timedelta(days=CHAT_CONTEXT_DAYS), tz_str)
     wellness_from = today_local - timedelta(days=CHAT_CONTEXT_DAYS)
 
-    (
-        r_user,
-        r_prof,
-        r_food,
-        r_wellness,
-        r_sleep_list,
-        r_well,
-        r_w,
-    ) = await asyncio.gather(
-        session.execute(select(User.email).where(User.id == user_id)),
-        session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id)),
-        session.execute(
-            select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.timestamp, FoodLog.extended_nutrients).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date == today_local,
-            )
-        ),
-        session.execute(
-            select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
-                SleepExtraction.user_id == user_id,
-                SleepExtraction.created_at >= history_start_utc,
-            ).order_by(SleepExtraction.created_at.desc()).limit(20)
-        ),
-        session.execute(
-            select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date >= wellness_from,
-                WellnessCache.date <= today_local,
-            ).order_by(WellnessCache.date.asc())
-        ),
-        session.execute(
-            select(Workout).where(
-                Workout.user_id == user_id,
-                Workout.start_date >= history_start_utc,
-                Workout.start_date < today_end_utc,
-            ).order_by(Workout.start_date.desc()).limit(CHAT_WORKOUTS_LIMIT)
-        ),
+    r_user = await session.execute(select(User.email).where(User.id == user_id))
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id))
+    r_food = await session.execute(
+        select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.timestamp, FoodLog.extended_nutrients).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
+    )
+    r_wellness = await session.execute(
+        select(WellnessCache).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date == today_local,
+        )
+    )
+    r_sleep_list = await session.execute(
+        select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
+            SleepExtraction.user_id == user_id,
+            SleepExtraction.created_at >= history_start_utc,
+        ).order_by(SleepExtraction.created_at.desc()).limit(20)
+    )
+    r_well = await session.execute(
+        select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date >= wellness_from,
+            WellnessCache.date <= today_local,
+        ).order_by(WellnessCache.date.asc())
+    )
+    r_w = await session.execute(
+        select(Workout).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= history_start_utc,
+            Workout.start_date < today_end_utc,
+        ).order_by(Workout.start_date.desc()).limit(CHAT_WORKOUTS_LIMIT)
     )
 
     user_row = r_user.one_or_none()
@@ -539,7 +528,7 @@ async def create_thread(
     title = title.strip() or "Новый чат"
     thread = ChatThread(user_id=uid, title=title)
     session.add(thread)
-    await session.commit()
+    await session.flush()
     await session.refresh(thread)
     return {"id": thread.id, "title": thread.title, "created_at": thread.created_at.isoformat() if thread.created_at else None}
 
@@ -568,7 +557,7 @@ async def update_thread(
         raise HTTPException(status_code=404, detail="Thread not found")
     title = (body.title or "").strip() or "Чат"
     thread.title = title[:128]
-    await session.commit()
+    await session.flush()
     await session.refresh(thread)
     return {"id": thread.id, "title": thread.title, "created_at": thread.created_at.isoformat() if thread.created_at else None}
 
@@ -590,7 +579,6 @@ async def delete_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
     await session.delete(thread)
-    await session.commit()
 
 
 @router.post(
@@ -610,7 +598,6 @@ async def clear_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
     await session.execute(delete(ChatMessage).where(ChatMessage.thread_id == thread_id))
-    await session.commit()
     return {"ok": True}
 
 
@@ -674,7 +661,7 @@ async def send_message(
     session.add(
         ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.user.value, content=body.message)
     )
-    await session.commit()
+    await session.flush()
 
     today_local = datetime.now(ZoneInfo((user.timezone or "UTC").strip() or "UTC")).date()
     reply = ""
@@ -706,13 +693,11 @@ async def send_message(
         session.add(
             ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.assistant.value, content=reply)
         )
-        await session.commit()
         return {"reply": reply}
 
     session.add(
         ChatMessage(user_id=uid, thread_id=thread_id, role=MessageRole.assistant.value, content=reply)
     )
-    await session.commit()
     return {"reply": reply}
 
 
@@ -772,7 +757,7 @@ async def send_message_with_file(
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.user.value, content=user_content or "(сообщение)")
     )
-    await session.commit()
+    await session.flush()
 
     today_local = datetime.now(ZoneInfo((user.timezone or "UTC").strip() or "UTC")).date()
     reply = ""
@@ -814,13 +799,11 @@ async def send_message_with_file(
         session.add(
             ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
         )
-        await session.commit()
         return {"reply": reply}
 
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
     )
-    await session.commit()
     return {"reply": reply}
 
 
@@ -866,7 +849,7 @@ async def send_message_with_image(
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.user.value, content=user_content)
     )
-    await session.commit()
+    await session.flush()
 
     reply = ""
     try:
@@ -886,13 +869,11 @@ async def send_message_with_image(
         session.add(
             ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
         )
-        await session.commit()
         return {"reply": reply}
 
     session.add(
         ChatMessage(user_id=uid, thread_id=tid, role=MessageRole.assistant.value, content=reply)
     )
-    await session.commit()
     return {"reply": reply}
 
 
@@ -916,7 +897,6 @@ async def run_orchestrator(
     result = await run_daily_decision(
         session, uid, today=for_date, locale=locale, client_local_hour=client_local_hour
     )
-    await session.commit()
     if user.is_premium:
         return {
             "decision": result.decision.value,

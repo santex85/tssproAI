@@ -3,7 +3,7 @@ AI Orchestrator: aggregates nutrition, wellness, load; applies 3-level hierarchy
 returns Go/Modify/Skip with optional modified plan. TZ: Level 1 (sleep, HRV, RHR, calories)
 cannot be overridden by Level 2 (TSS, CTL, ATL). Level 3: polarised intensity (Seiler).
 """
-import asyncio
+import copy
 import json
 import logging
 from datetime import date, datetime, timedelta, time, timezone
@@ -30,12 +30,127 @@ from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 
+
+# Gemini protobuf Schema does not support these JSON Schema fields.
+UNSUPPORTED_BY_GEMINI = frozenset(
+    {"maxLength", "minLength", "pattern", "example", "default"}
+)
+
+
+def _strip_unsupported_for_gemini(obj: Any) -> Any:
+    """Recursively remove JSON Schema fields Gemini protobuf Schema does not support."""
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            if k in UNSUPPORTED_BY_GEMINI:
+                continue
+            # Strip metadata "title" (value is str) but keep property "title" (value is schema dict)
+            if k == "title" and isinstance(v, str):
+                continue
+            result[k] = _strip_unsupported_for_gemini(v)
+        return result
+    if isinstance(obj, list):
+        return [_strip_unsupported_for_gemini(x) for x in obj]
+    return obj
+
+
+def _is_null_schema(obj: Any) -> bool:
+    """True if obj is exactly {"type": "null"}."""
+    return isinstance(obj, dict) and obj.get("type") == "null" and len(obj) == 1
+
+
+def _normalize_nullable_for_gemini(obj: Any) -> Any:
+    """Convert anyOf: [X, {"type":"null"}] to X + nullable: true. Gemini does not support anyOf."""
+    if isinstance(obj, dict):
+        if "anyOf" in obj:
+            variants = obj["anyOf"]
+            if isinstance(variants, list) and len(variants) == 2:
+                a, b = variants
+                if _is_null_schema(a):
+                    base = _normalize_nullable_for_gemini(b)
+                    if isinstance(base, dict):
+                        base = copy.deepcopy(base)
+                        base["nullable"] = True
+                        return base
+                elif _is_null_schema(b):
+                    base = _normalize_nullable_for_gemini(a)
+                    if isinstance(base, dict):
+                        base = copy.deepcopy(base)
+                        base["nullable"] = True
+                        return base
+            raise ValueError(
+                "Schema contains non-nullable anyOf; Gemini protobuf Schema does not support anyOf. "
+                "Only optional (T | None) fields are supported."
+            )
+        return {k: _normalize_nullable_for_gemini(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_nullable_for_gemini(x) for x in obj]
+    return obj
+
+
+def _strip_additional_properties_for_gemini(obj: Any) -> Any:
+    """Recursively remove additionalProperties. Gemini protobuf Schema does not support it."""
+    if isinstance(obj, dict):
+        result = {k: _strip_additional_properties_for_gemini(v) for k, v in obj.items()}
+        result.pop("additionalProperties", None)
+        return result
+    if isinstance(obj, list):
+        return [_strip_additional_properties_for_gemini(x) for x in obj]
+    return obj
+
+
+def _assert_no_union_keywords(schema: dict, path: str = "root") -> None:
+    """Fail fast if anyOf/oneOf/allOf remain after normalization."""
+    for key in ("anyOf", "oneOf", "allOf"):
+        if key in schema:
+            raise ValueError(
+                f"Schema at {path} still contains '{key}'; Gemini protobuf Schema does not support it. "
+                "Ensure optional fields use T | None and are normalized to nullable: true."
+            )
+    for k, v in schema.items():
+        if isinstance(v, dict):
+            _assert_no_union_keywords(v, f"{path}.{k}")
+        elif isinstance(v, list):
+            for i, item in enumerate(v):
+                if isinstance(item, dict):
+                    _assert_no_union_keywords(item, f"{path}.{k}[{i}]")
+
+
+def _inline_schema_for_gemini(schema: dict) -> dict:
+    """Inline $ref from $defs; strip unsupported fields. Gemini API does not support $defs/$ref, maxLength, etc."""
+    defs_map = schema.get("$defs", {})
+
+    def resolve(obj):
+        if isinstance(obj, dict):
+            if "$ref" in obj and len(obj) == 1:
+                ref = obj["$ref"]
+                if ref.startswith("#/$defs/"):
+                    name = ref.split("/")[-1]
+                    return resolve(copy.deepcopy(defs_map.get(name, obj)))
+            return {k: resolve(v) for k, v in obj.items() if k != "$defs"}
+        if isinstance(obj, list):
+            return [resolve(x) for x in obj]
+        return obj
+
+    if defs_map:
+        result = resolve(copy.deepcopy(schema))
+        result.pop("$defs", None)
+        result.pop("title", None)
+    else:
+        result = {k: v for k, v in schema.items() if k != "title"}
+
+    return _strip_unsupported_for_gemini(result)
+
+
 def _get_response_schema() -> dict:
-    """Derive JSON schema from Pydantic model to avoid duplication."""
+    """Derive JSON schema from Pydantic model, normalized for Gemini protobuf Schema."""
     schema = OrchestratorResponse.model_json_schema()
-    # Remove top-level title; keep $defs for nested ModifiedPlanItem
     schema.pop("title", None)
-    return schema
+    result = _inline_schema_for_gemini(schema)
+    result = _normalize_nullable_for_gemini(result)
+    result = _strip_additional_properties_for_gemini(result)
+    _assert_no_union_keywords(result)
+    return result
 
 
 GENERATION_CONFIG = {
@@ -321,6 +436,9 @@ async def run_daily_decision(
     When client_local_hour is evening (e.g. >= 18), prompt asks for plan_tomorrow and evening_tips instead of Skip.
     """
     today = today or date.today()
+    if not settings.google_gemini_api_key or not settings.google_gemini_api_key.strip():
+        logger.warning("Orchestrator skipped for user_id=%s: GOOGLE_GEMINI_API_KEY not set", user_id)
+        return OrchestratorResponse(decision=Decision.SKIP, reason="AI unavailable; defaulting to Skip.")
     is_evening = _is_evening(client_local_hour)
     wellness_from = today - timedelta(days=7)
     from_date = today - timedelta(days=14)
@@ -333,57 +451,47 @@ async def run_daily_decision(
     from_start_utc, _ = _day_bounds_utc(from_date, user_tz)
     _, to_start_utc = _day_bounds_utc(today + timedelta(days=1), user_tz)
 
-    (
-        r_food,
-        r_wellness,
-        r_prof,
-        r_fe,
-        r_wh,
-        r_workouts,
-        r_creds,
-    ) = await asyncio.gather(
-        session.execute(
-            select(
-                FoodLog.calories,
-                FoodLog.protein_g,
-                FoodLog.fat_g,
-                FoodLog.carbs_g,
-            ).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date == today,
-            )
-        ),
-        session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id)),
-        session.execute(
-            select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.extended_nutrients).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date >= wellness_from,
-                WellnessCache.date <= today,
-            ).order_by(WellnessCache.date.asc())
-        ),
-        session.execute(
-            select(Workout).where(
-                Workout.user_id == user_id,
-                Workout.start_date >= from_start_utc,
-                Workout.start_date < to_start_utc,
-            ).order_by(Workout.start_date.desc()).limit(10)
-        ),
-        session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id)),
+    r_food = await session.execute(
+        select(
+            FoodLog.calories,
+            FoodLog.protein_g,
+            FoodLog.fat_g,
+            FoodLog.carbs_g,
+        ).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
     )
+    r_wellness = await session.execute(
+        select(WellnessCache).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date == today,
+        )
+    )
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id))
+    r_fe = await session.execute(
+        select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.extended_nutrients).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
+    )
+    r_wh = await session.execute(
+        select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date >= wellness_from,
+            WellnessCache.date <= today,
+        ).order_by(WellnessCache.date.asc())
+    )
+    r_workouts = await session.execute(
+        select(Workout).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= from_start_utc,
+            Workout.start_date < to_start_utc,
+        ).order_by(Workout.start_date.desc()).limit(10)
+    )
+    r_creds = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id))
 
     # Process food sum
     rows = r_food.all()
@@ -505,14 +613,21 @@ async def run_daily_decision(
     system_prompt = _build_system_prompt(
         locale, had_workout_today, is_evening=is_evening, client_local_hour=client_local_hour
     )
-    model = genai.GenerativeModel(
-        settings.gemini_model,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
-    )
-    response = await run_generate_content(model, [system_prompt, "\n\nContext:\n" + context])
-    if not response or not response.text:
-        return OrchestratorResponse(decision=Decision.SKIP, reason="No AI response; defaulting to Skip.")
+    try:
+        model = genai.GenerativeModel(
+            settings.gemini_model,
+            generation_config=GENERATION_CONFIG,
+            safety_settings=SAFETY_SETTINGS,
+        )
+        response = await run_generate_content(model, [system_prompt, "\n\nContext:\n" + context])
+        if not response or not response.text:
+            return OrchestratorResponse(decision=Decision.SKIP, reason="No AI response; defaulting to Skip.")
+    except Exception as e:
+        logger.exception(
+            "Orchestrator Gemini call failed for user_id=%s: %s",
+            user_id, str(e),
+        )
+        return OrchestratorResponse(decision=Decision.SKIP, reason="AI unavailable; defaulting to Skip.")
     try:
         result = _parse_llm_response(response.text)
     except (json.JSONDecodeError, Exception) as e:

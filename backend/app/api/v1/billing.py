@@ -3,6 +3,7 @@
 from datetime import date
 from typing import Annotated, Literal
 
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -98,6 +99,8 @@ async def create_checkout_session(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     await session.commit()
     return {"url": url}
 
@@ -117,6 +120,8 @@ async def create_portal_session(
         url = await stripe_service.create_portal_session(user, body.return_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"url": url}
 
 
@@ -134,6 +139,8 @@ async def create_portal_session_alias(
     try:
         url = await stripe_service.create_portal_session(user, body.return_url)
     except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except stripe.error.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"url": url}
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -13,6 +14,7 @@ from app.config import settings
 from app.models.subscription import Subscription
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
 stripe.api_key = settings.stripe_secret_key
 
 ACTIVE_STATUSES = ("trialing", "active")
@@ -156,6 +158,17 @@ async def set_user_premium_from_subscription(
         await session.flush()
 
 
+def _normalize_id(value, prefix: str = "") -> str | None:
+    """Extract string ID from Stripe object (may be str, dict with 'id', or object with .id)."""
+    if isinstance(value, str) and (not prefix or value.startswith(prefix)):
+        return value
+    if isinstance(value, dict):
+        return value.get("id") or None
+    if hasattr(value, "id"):
+        return getattr(value, "id", None)
+    return None
+
+
 async def handle_checkout_session_completed(
     session: AsyncSession, stripe_session
 ) -> None:
@@ -163,7 +176,8 @@ async def handle_checkout_session_completed(
     customer_id = stripe_session.get("customer")
     if isinstance(customer_id, dict):
         customer_id = customer_id.get("id") or customer_id.get("email")
-    sub_id = stripe_session.get("subscription")
+    sub_raw = stripe_session.get("subscription")
+    sub_id = _normalize_id(sub_raw, "sub_") if sub_raw else None
     client_ref = stripe_session.get("client_reference_id")
     if not sub_id:
         return
@@ -174,6 +188,7 @@ async def handle_checkout_session_completed(
         if u and not u.stripe_customer_id:
             u.stripe_customer_id = customer_id if isinstance(customer_id, str) else None
             await session.flush()
+    logger.info("Stripe checkout.session.completed: syncing subscription %s for user_id=%s", sub_id, user_id)
     await sync_subscription_status(session, sub_id)
 
 

@@ -58,8 +58,8 @@ async def update_my_premium(
     user: Annotated[User, Depends(get_current_user)],
     body: PremiumToggleBody,
 ) -> dict:
-    """Set is_premium for current user. Only allowed when app_env != production (for testing)."""
-    if settings.app_env == "production":
+    """Set is_premium for current user. Allowed when app_env != production or dev_premium_toggle_enabled (e.g. dev/stripe testing)."""
+    if settings.app_env == "production" and not settings.dev_premium_toggle_enabled:
         raise HTTPException(status_code=403, detail="Premium toggle only available in development.")
     user.is_premium = body.is_premium
     await session.flush()

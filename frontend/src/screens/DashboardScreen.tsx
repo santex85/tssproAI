@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
-import { LineChart } from "react-native-gifted-charts";
 import * as Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -61,6 +60,7 @@ import { useTheme, contentWrap } from "../theme";
 import { useTranslation, type Locale } from "../i18n";
 import { useLoadingStages } from "../hooks/useLoadingStages";
 import { PremiumGateModal } from "../components/PremiumGateModal";
+import { WorkoutChart } from "../components/WorkoutChart";
 
 const CALORIE_GOAL = 2200;
 const CARBS_GOAL = 250;
@@ -1100,7 +1100,7 @@ const WorkoutDetailModal = React.memo(function WorkoutDetailModal({
                 <View style={{ marginTop: 12 }}>
                   <Text style={[styles.modalLabel, { marginBottom: 4 }]}>{t("dashboard.workoutDetailPowerW")}</Text>
                   <View style={{ height: WORKOUT_CHART_HEIGHT }}>
-                    <LineChart
+                    <WorkoutChart
                       data={powerData}
                       width={Math.max(chartWidth - 80, powerData.length * 2)}
                       height={WORKOUT_CHART_HEIGHT - 24}
@@ -1121,7 +1121,7 @@ const WorkoutDetailModal = React.memo(function WorkoutDetailModal({
                 <View style={{ marginTop: 12 }}>
                   <Text style={[styles.modalLabel, { marginBottom: 4 }]}>{t("dashboard.workoutDetailSpeedKmh")}</Text>
                   <View style={{ height: WORKOUT_CHART_HEIGHT }}>
-                    <LineChart
+                    <WorkoutChart
                       data={speedData}
                       width={Math.max(chartWidth - 80, speedData.length * 2)}
                       height={WORKOUT_CHART_HEIGHT - 24}

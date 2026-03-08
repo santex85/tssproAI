@@ -209,6 +209,11 @@ async def lifespan(app: FastAPI):
     if settings.google_gemini_api_key:
         import google.generativeai as genai
         genai.configure(api_key=settings.google_gemini_api_key)
+    elif settings.enable_scheduler:
+        logger.warning(
+            "GOOGLE_GEMINI_API_KEY is not set; orchestrator will return SKIP for all users. "
+            "Set GOOGLE_GEMINI_API_KEY in .env to enable AI decisions."
+        )
 
     # Scheduled jobs use a Redis distributed lock so that with multiple Uvicorn/Gunicorn
     # workers only one process runs each job (no duplicate push notifications or DB load).
