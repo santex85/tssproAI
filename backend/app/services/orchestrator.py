@@ -3,7 +3,6 @@ AI Orchestrator: aggregates nutrition, wellness, load; applies 3-level hierarchy
 returns Go/Modify/Skip with optional modified plan. TZ: Level 1 (sleep, HRV, RHR, calories)
 cannot be overridden by Level 2 (TSS, CTL, ATL). Level 3: polarised intensity (Seiler).
 """
-import asyncio
 import json
 import logging
 from datetime import date, datetime, timedelta, time, timezone
@@ -333,57 +332,47 @@ async def run_daily_decision(
     from_start_utc, _ = _day_bounds_utc(from_date, user_tz)
     _, to_start_utc = _day_bounds_utc(today + timedelta(days=1), user_tz)
 
-    (
-        r_food,
-        r_wellness,
-        r_prof,
-        r_fe,
-        r_wh,
-        r_workouts,
-        r_creds,
-    ) = await asyncio.gather(
-        session.execute(
-            select(
-                FoodLog.calories,
-                FoodLog.protein_g,
-                FoodLog.fat_g,
-                FoodLog.carbs_g,
-            ).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date == today,
-            )
-        ),
-        session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id)),
-        session.execute(
-            select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.extended_nutrients).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date >= wellness_from,
-                WellnessCache.date <= today,
-            ).order_by(WellnessCache.date.asc())
-        ),
-        session.execute(
-            select(Workout).where(
-                Workout.user_id == user_id,
-                Workout.start_date >= from_start_utc,
-                Workout.start_date < to_start_utc,
-            ).order_by(Workout.start_date.desc()).limit(10)
-        ),
-        session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id)),
+    r_food = await session.execute(
+        select(
+            FoodLog.calories,
+            FoodLog.protein_g,
+            FoodLog.fat_g,
+            FoodLog.carbs_g,
+        ).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
     )
+    r_wellness = await session.execute(
+        select(WellnessCache).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date == today,
+        )
+    )
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id))
+    r_fe = await session.execute(
+        select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.extended_nutrients).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
+    )
+    r_wh = await session.execute(
+        select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date >= wellness_from,
+            WellnessCache.date <= today,
+        ).order_by(WellnessCache.date.asc())
+    )
+    r_workouts = await session.execute(
+        select(Workout).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= from_start_utc,
+            Workout.start_date < to_start_utc,
+        ).order_by(Workout.start_date.desc()).limit(10)
+    )
+    r_creds = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id))
 
     # Process food sum
     rows = r_food.all()

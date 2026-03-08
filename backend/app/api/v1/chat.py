@@ -1,6 +1,5 @@
 """Chat with AI coach: history, send message, optional orchestrator run, optional FIT upload."""
 
-import asyncio
 import json
 from datetime import date, datetime, timedelta, time, timezone
 from typing import Annotated
@@ -189,50 +188,40 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
     history_start_utc, _ = _day_bounds_utc(today_local - timedelta(days=CHAT_CONTEXT_DAYS), tz_str)
     wellness_from = today_local - timedelta(days=CHAT_CONTEXT_DAYS)
 
-    (
-        r_user,
-        r_prof,
-        r_food,
-        r_wellness,
-        r_sleep_list,
-        r_well,
-        r_w,
-    ) = await asyncio.gather(
-        session.execute(select(User.email).where(User.id == user_id)),
-        session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id)),
-        session.execute(
-            select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.timestamp, FoodLog.extended_nutrients).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= today_start_utc,
-                FoodLog.timestamp < today_end_utc,
-            )
-        ),
-        session.execute(
-            select(WellnessCache).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date == today_local,
-            )
-        ),
-        session.execute(
-            select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
-                SleepExtraction.user_id == user_id,
-                SleepExtraction.created_at >= history_start_utc,
-            ).order_by(SleepExtraction.created_at.desc()).limit(20)
-        ),
-        session.execute(
-            select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date >= wellness_from,
-                WellnessCache.date <= today_local,
-            ).order_by(WellnessCache.date.asc())
-        ),
-        session.execute(
-            select(Workout).where(
-                Workout.user_id == user_id,
-                Workout.start_date >= history_start_utc,
-                Workout.start_date < today_end_utc,
-            ).order_by(Workout.start_date.desc()).limit(CHAT_WORKOUTS_LIMIT)
-        ),
+    r_user = await session.execute(select(User.email).where(User.id == user_id))
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user_id))
+    r_food = await session.execute(
+        select(FoodLog.name, FoodLog.portion_grams, FoodLog.calories, FoodLog.protein_g, FoodLog.fat_g, FoodLog.carbs_g, FoodLog.meal_type, FoodLog.timestamp, FoodLog.extended_nutrients).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= today_start_utc,
+            FoodLog.timestamp < today_end_utc,
+        )
+    )
+    r_wellness = await session.execute(
+        select(WellnessCache).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date == today_local,
+        )
+    )
+    r_sleep_list = await session.execute(
+        select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
+            SleepExtraction.user_id == user_id,
+            SleepExtraction.created_at >= history_start_utc,
+        ).order_by(SleepExtraction.created_at.desc()).limit(20)
+    )
+    r_well = await session.execute(
+        select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb, WellnessCache.weight_kg).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date >= wellness_from,
+            WellnessCache.date <= today_local,
+        ).order_by(WellnessCache.date.asc())
+    )
+    r_w = await session.execute(
+        select(Workout).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= history_start_utc,
+            Workout.start_date < today_end_utc,
+        ).order_by(Workout.start_date.desc()).limit(CHAT_WORKOUTS_LIMIT)
     )
 
     user_row = r_user.one_or_none()

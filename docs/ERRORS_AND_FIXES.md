@@ -30,4 +30,14 @@
 **Коммит:** `4a18800`  
 **Статус:** Исправлено
 
-### 2. [Следующие ошибки добавлять по аналогии]
+### 2. SQLAlchemy AsyncSession concurrent operations / close() conflict
+
+**Дата:** 2026-03-08  
+**Место:** `backend/app/db/session.py` (get_db), `backend/app/api/v1/chat.py` (send_message), `backend/app/services/orchestrator.py`, `backend/app/services/weekly_summary.py`  
+**Цепочка:** `send_message` → `run_daily_decision` / `_build_athlete_context` → `asyncio.gather(session.execute(...), ...)`  
+**Ошибка:**  
+- `InvalidRequestError: This session is provisioning a new connection; concurrent operations are not permitted`  
+- `Method 'close()' can't be called here; method '_connection_for_bind()' is already in progress`  
+**Причина:** AsyncSession не поддерживает параллельные операции на одной сессии. `asyncio.gather` с несколькими `session.execute()` вызывал конфликт состояний и блокировку при `close()` в `get_db`.  
+**Решение:** Заменить `asyncio.gather(session.execute(...), ...)` на последовательные `await session.execute(...)` в `run_daily_decision`, `_build_athlete_context`, `_build_week_data_text`.  
+**Статус:** Исправлено

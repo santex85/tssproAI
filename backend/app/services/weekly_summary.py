@@ -45,35 +45,33 @@ async def _build_week_data_text(
     from_dt = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=timezone.utc)
     to_dt = datetime.combine(week_end + timedelta(days=1), datetime.min.time()).replace(tzinfo=timezone.utc)
 
-    r_workouts, r_food, r_wellness, r_sleep = await asyncio.gather(
-        session.execute(
-            select(Workout.start_date, Workout.name, Workout.type, Workout.duration_sec, Workout.distance_m, Workout.tss).where(
-                Workout.user_id == user_id,
-                Workout.start_date >= from_dt,
-                Workout.start_date < to_dt,
-            ).order_by(Workout.start_date.asc())
-        ),
-        session.execute(
-            select(FoodLog.timestamp, FoodLog.calories, FoodLog.protein_g).where(
-                FoodLog.user_id == user_id,
-                FoodLog.timestamp >= from_dt,
-                FoodLog.timestamp < to_dt,
-            ).order_by(FoodLog.timestamp.asc())
-        ),
-        session.execute(
-            select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb).where(
-                WellnessCache.user_id == user_id,
-                WellnessCache.date >= week_start,
-                WellnessCache.date <= week_end,
-            ).order_by(WellnessCache.date.asc())
-        ),
-        session.execute(
-            select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
-                SleepExtraction.user_id == user_id,
-                SleepExtraction.created_at >= from_dt,
-                SleepExtraction.created_at < to_dt,
-            ).order_by(SleepExtraction.created_at.asc())
-        ),
+    r_workouts = await session.execute(
+        select(Workout.start_date, Workout.name, Workout.type, Workout.duration_sec, Workout.distance_m, Workout.tss).where(
+            Workout.user_id == user_id,
+            Workout.start_date >= from_dt,
+            Workout.start_date < to_dt,
+        ).order_by(Workout.start_date.asc())
+    )
+    r_food = await session.execute(
+        select(FoodLog.timestamp, FoodLog.calories, FoodLog.protein_g).where(
+            FoodLog.user_id == user_id,
+            FoodLog.timestamp >= from_dt,
+            FoodLog.timestamp < to_dt,
+        ).order_by(FoodLog.timestamp.asc())
+    )
+    r_wellness = await session.execute(
+        select(WellnessCache.date, WellnessCache.sleep_hours, WellnessCache.rhr, WellnessCache.hrv, WellnessCache.ctl, WellnessCache.atl, WellnessCache.tsb).where(
+            WellnessCache.user_id == user_id,
+            WellnessCache.date >= week_start,
+            WellnessCache.date <= week_end,
+        ).order_by(WellnessCache.date.asc())
+    )
+    r_sleep = await session.execute(
+        select(SleepExtraction.created_at, SleepExtraction.extracted_data).where(
+            SleepExtraction.user_id == user_id,
+            SleepExtraction.created_at >= from_dt,
+            SleepExtraction.created_at < to_dt,
+        ).order_by(SleepExtraction.created_at.asc())
     )
 
     workouts = []
