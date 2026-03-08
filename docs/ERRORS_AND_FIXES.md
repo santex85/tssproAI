@@ -40,4 +40,5 @@
 - `Method 'close()' can't be called here; method '_connection_for_bind()' is already in progress`  
 **Причина:** AsyncSession не поддерживает параллельные операции на одной сессии. `asyncio.gather` с несколькими `session.execute()` вызывал конфликт состояний и блокировку при `close()` в `get_db`.  
 **Решение:** Заменить `asyncio.gather(session.execute(...), ...)` на последовательные `await session.execute(...)` в `run_daily_decision`, `_build_athlete_context`, `_build_week_data_text`.  
+**Коммит:** `d6ef3a3`  
 **Статус:** Исправлено
