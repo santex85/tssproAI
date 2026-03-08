@@ -68,3 +68,12 @@
 **Причина:** Gemini API не поддерживает `$defs` и `$ref` в response_schema; Pydantic генерирует их для вложенных типов.  
 **Решение:** Функция `_inline_schema_for_gemini` инлайнит все `$ref` из `$defs` и удаляет `$defs`/`title` перед передачей в GenerationConfig.  
 **Статус:** Исправлено
+
+### 6. Orchestrator ValueError: Protocol message Schema has no "maxLength" field
+
+**Дата:** 2026-03-08  
+**Место:** `backend/app/services/orchestrator.py`, `run_daily_decision` (GenerationConfig, response_schema)  
+**Ошибка:** `ValueError: Protocol message Schema has no "maxLength" field.` при вызове Gemini (proto/marshal/rules/message.py).  
+**Причина:** Gemini API protobuf Schema не поддерживает `maxLength`, `minLength`, `pattern` и др.; Pydantic генерирует их для `Field(max_length=...)`.  
+**Решение:** Рекурсивно удалять unsupported поля (`maxLength`, `minLength`, `pattern`, `example`, `default`, `title`) в `_inline_schema_for_gemini` перед передачей в GenerationConfig.  
+**Статус:** Исправлено

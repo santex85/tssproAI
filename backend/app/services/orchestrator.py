@@ -31,11 +31,32 @@ from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 
 
+# Gemini protobuf Schema does not support these JSON Schema fields.
+UNSUPPORTED_BY_GEMINI = frozenset(
+    {"maxLength", "minLength", "pattern", "example", "default"}
+)
+
+
+def _strip_unsupported_for_gemini(obj: Any) -> Any:
+    """Recursively remove JSON Schema fields Gemini protobuf Schema does not support."""
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            if k in UNSUPPORTED_BY_GEMINI:
+                continue
+            # Strip metadata "title" (value is str) but keep property "title" (value is schema dict)
+            if k == "title" and isinstance(v, str):
+                continue
+            result[k] = _strip_unsupported_for_gemini(v)
+        return result
+    if isinstance(obj, list):
+        return [_strip_unsupported_for_gemini(x) for x in obj]
+    return obj
+
+
 def _inline_schema_for_gemini(schema: dict) -> dict:
-    """Inline $ref from $defs; Gemini API does not support $defs/$ref."""
+    """Inline $ref from $defs; strip unsupported fields. Gemini API does not support $defs/$ref, maxLength, etc."""
     defs_map = schema.get("$defs", {})
-    if not defs_map:
-        return {k: v for k, v in schema.items() if k != "title"}
 
     def resolve(obj):
         if isinstance(obj, dict):
@@ -44,15 +65,19 @@ def _inline_schema_for_gemini(schema: dict) -> dict:
                 if ref.startswith("#/$defs/"):
                     name = ref.split("/")[-1]
                     return resolve(copy.deepcopy(defs_map.get(name, obj)))
-            return {k: resolve(v) for k, v in obj.items() if k not in ("$defs", "title")}
+            return {k: resolve(v) for k, v in obj.items() if k != "$defs"}
         if isinstance(obj, list):
             return [resolve(x) for x in obj]
         return obj
 
-    result = resolve(copy.deepcopy(schema))
-    result.pop("$defs", None)
-    result.pop("title", None)
-    return result
+    if defs_map:
+        result = resolve(copy.deepcopy(schema))
+        result.pop("$defs", None)
+        result.pop("title", None)
+    else:
+        result = {k: v for k, v in schema.items() if k != "title"}
+
+    return _strip_unsupported_for_gemini(result)
 
 
 def _get_response_schema() -> dict:
