@@ -1202,6 +1202,7 @@ export function DashboardScreen({
   const [wellnessWeek, setWellnessWeek] = useState<WellnessDay[]>([]);
   const [athleteProfile, setAthleteProfile] = useState<AthleteProfileResponse | null>(null);
   const [editWellnessDate, setEditWellnessDate] = useState<string | null>(null);
+  const [editWellnessExtractionId, setEditWellnessExtractionId] = useState<number | null>(null);
   const [addFoodModalVisible, setAddFoodModalVisible] = useState(false);
   const [workoutAddVisible, setWorkoutAddVisible] = useState(false);
   const [fitUploading, setFitUploading] = useState(false);
@@ -1675,144 +1676,6 @@ export function DashboardScreen({
           </Pressable>
         </Pressable>
       </Modal>
-      {sleepHistoryMenuKey ? (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setSleepHistoryMenuKey(null)}>
-          <Pressable
-            style={[styles.modalBackdrop, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}
-            onPress={() => setSleepHistoryMenuKey(null)}
-          >
-            <Pressable
-              style={[
-                styles.modalBox,
-                Platform.OS === "web" && { backdropFilter: "blur(20px)" },
-                { maxWidth: 280, padding: 16 },
-              ]}
-              onPress={(e) => e.stopPropagation()}
-            >
-              {(() => {
-                const entry = combinedSleepHistory.find(
-                  (item) =>
-                    (item.source === "photo" && item.extraction && sleepHistoryMenuKey === `photo-${item.extraction.id}`) ||
-                    (item.source === "manual" && sleepHistoryMenuKey === `wellness-${item.date}`)
-                );
-                if (!entry) return null;
-                return (
-                  <View style={{ gap: 4 }}>
-                    {entry.source === "manual" ? (
-                      <TouchableOpacity
-                        style={[styles.modalBtnSave, { paddingVertical: 12 }]}
-                        onPress={() => {
-                          setEditWellnessDate(entry.date);
-                          setSleepHistoryMenuKey(null);
-                        }}
-                      >
-                        <Text style={styles.modalBtnSaveText}>{t("wellness.editEntry")}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    {entry.source === "photo" && entry.extraction?.can_reanalyze && sleepReanalyzeExtId !== entry.extraction.id ? (
-                      <TouchableOpacity
-                        style={[styles.modalBtnSave, { paddingVertical: 12 }]}
-                        onPress={() => {
-                          setSleepReanalyzeExtId(entry.extraction!.id);
-                          setSleepReanalyzeCorrection("");
-                          setSleepHistoryMenuKey(null);
-                        }}
-                        disabled={sleepReanalyzingId != null}
-                      >
-                        <Text style={styles.modalBtnSaveText}>{t("wellness.reanalyze")}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    <TouchableOpacity
-                      style={[styles.deleteAction, { paddingVertical: 12 }]}
-                      onPress={async () => {
-                        setSleepHistoryMenuKey(null);
-                        if (entry.source === "manual") {
-                          const doDelete = async () => {
-                            try {
-                              await deleteWellness(entry.date);
-                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-                              load();
-                            } catch (e) {
-                              const raw = e instanceof Error ? e.message : t("dashboard.deleteFailed");
-                              let msg = raw;
-                              try {
-                                const parsed = JSON.parse(raw);
-                                if (parsed?.detail === "Wellness record not found") msg = t("common.alerts.recordNotFound");
-                              } catch {
-                                if (raw.startsWith("{")) msg = t("common.alerts.serverError");
-                              }
-                              if (Platform.OS === "web" && typeof window !== "undefined") {
-                                window.alert(msg);
-                              } else {
-                                Alert.alert(t("common.error"), msg);
-                              }
-                            }
-                          };
-                          if (Platform.OS === "web" && typeof window !== "undefined") {
-                            if (window.confirm(`${t("wellness.deleteWellnessTitle")}\n${t("wellness.deleteWellnessMessage")}`)) {
-                              await doDelete();
-                            }
-                          } else {
-                            Alert.alert(
-                              t("wellness.deleteWellnessTitle"),
-                              t("wellness.deleteWellnessMessage"),
-                              [
-                                { text: t("common.cancel"), style: "cancel" },
-                                { text: t("wellness.deleteSleepEntryConfirm"), style: "destructive", onPress: doDelete },
-                              ]
-                            );
-                          }
-                        } else if (entry.source === "photo" && entry.extraction) {
-                          const doDelete = async () => {
-                            try {
-                              await deleteSleepExtraction(entry.extraction!.id);
-                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-                              load();
-                              const fresh = await getSleepExtractions(addDays(today, -14), today).catch(() => []);
-                              setSleepExtractions(fresh ?? []);
-                            } catch (e) {
-                              const raw = e instanceof Error ? e.message : t("dashboard.deleteFailed");
-                              let msg = raw;
-                              try {
-                                const parsed = JSON.parse(raw);
-                                if (parsed?.detail === "Not Found" || parsed?.detail === "Extraction not found")
-                                  msg = t("common.alerts.recordNotFound");
-                              } catch {
-                                if (raw.startsWith("{")) msg = t("common.alerts.serverError");
-                              }
-                              if (Platform.OS === "web" && typeof window !== "undefined") {
-                                window.alert(msg);
-                              } else {
-                                Alert.alert(t("common.error"), msg);
-                              }
-                            }
-                          };
-                          if (Platform.OS === "web" && typeof window !== "undefined") {
-                            if (window.confirm(`${t("wellness.deleteSleepEntryTitle")}\n${t("wellness.deleteSleepEntryMessage")}`)) {
-                              await doDelete();
-                            }
-                          } else {
-                            Alert.alert(
-                              t("wellness.deleteSleepEntryTitle"),
-                              t("wellness.deleteSleepEntryMessage"),
-                              [
-                                { text: t("common.cancel"), style: "cancel" },
-                                { text: t("wellness.deleteSleepEntryConfirm"), style: "destructive", onPress: doDelete },
-                              ]
-                            );
-                          }
-                        }
-                      }}
-                    >
-                      <Text style={styles.deleteActionText}>{t("wellness.deleteEntry")}</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })()}
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
       <PremiumGateModal
         visible={premiumGateVisible}
         onClose={() => setPremiumGateVisible(false)}
@@ -2063,13 +1926,125 @@ export function DashboardScreen({
                         style={{ padding: 8, marginRight: -8 }}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                          setSleepHistoryMenuKey(entry.source === "photo" && entry.extraction ? `photo-${entry.extraction.id}` : `wellness-${entry.date}`);
+                          const key = entry.source === "photo" && entry.extraction ? `photo-${entry.extraction.id}` : `wellness-${entry.date}`;
+                          setSleepHistoryMenuKey(sleepHistoryMenuKey === key ? null : key);
                         }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Ionicons name="ellipsis-vertical" size={20} color={colors.textMuted} />
                       </TouchableOpacity>
                     </View>
+                    {sleepHistoryMenuKey === (entry.source === "photo" && entry.extraction ? `photo-${entry.extraction.id}` : `wellness-${entry.date}`) ? (
+                      <View style={[styles.sleepHistoryDropdown, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
+                        <TouchableOpacity
+                          style={styles.sleepHistoryDropdownItem}
+                          onPress={() => {
+                            setEditWellnessDate(entry.date);
+                            setEditWellnessExtractionId(entry.source === "photo" && entry.extraction ? entry.extraction.id : null);
+                            setSleepHistoryMenuKey(null);
+                          }}
+                        >
+                          <Text style={[styles.sleepHistoryDropdownItemText, { color: colors.text }]}>{t("wellness.editEntry")}</Text>
+                        </TouchableOpacity>
+                        {entry.source === "photo" && entry.extraction?.can_reanalyze && sleepReanalyzeExtId !== entry.extraction.id ? (
+                          <TouchableOpacity
+                            style={styles.sleepHistoryDropdownItem}
+                            onPress={() => {
+                              setSleepReanalyzeExtId(entry.extraction!.id);
+                              setSleepReanalyzeCorrection("");
+                              setSleepHistoryMenuKey(null);
+                            }}
+                            disabled={sleepReanalyzingId != null}
+                          >
+                            <Text style={[styles.sleepHistoryDropdownItemText, { color: colors.text }]}>{t("wellness.reanalyze")}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity
+                          style={styles.sleepHistoryDropdownItem}
+                          onPress={async () => {
+                            setSleepHistoryMenuKey(null);
+                            if (entry.source === "manual") {
+                              const doDelete = async () => {
+                                try {
+                                  await deleteWellness(entry.date);
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                                  load();
+                                } catch (e) {
+                                  const raw = e instanceof Error ? e.message : t("dashboard.deleteFailed");
+                                  let msg = raw;
+                                  try {
+                                    const parsed = JSON.parse(raw);
+                                    if (parsed?.detail === "Wellness record not found") msg = t("common.alerts.recordNotFound");
+                                  } catch {
+                                    if (raw.startsWith("{")) msg = t("common.alerts.serverError");
+                                  }
+                                  if (Platform.OS === "web" && typeof window !== "undefined") {
+                                    window.alert(msg);
+                                  } else {
+                                    Alert.alert(t("common.error"), msg);
+                                  }
+                                }
+                              };
+                              if (Platform.OS === "web" && typeof window !== "undefined") {
+                                if (window.confirm(`${t("wellness.deleteWellnessTitle")}\n${t("wellness.deleteWellnessMessage")}`)) {
+                                  await doDelete();
+                                }
+                              } else {
+                                Alert.alert(
+                                  t("wellness.deleteWellnessTitle"),
+                                  t("wellness.deleteWellnessMessage"),
+                                  [
+                                    { text: t("common.cancel"), style: "cancel" },
+                                    { text: t("wellness.deleteSleepEntryConfirm"), style: "destructive", onPress: doDelete },
+                                  ]
+                                );
+                              }
+                            } else if (entry.source === "photo" && entry.extraction) {
+                              const doDelete = async () => {
+                                try {
+                                  await deleteSleepExtraction(entry.extraction!.id);
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                                  load();
+                                  const fresh = await getSleepExtractions(addDays(today, -14), today).catch(() => []);
+                                  setSleepExtractions(fresh ?? []);
+                                } catch (e) {
+                                  const raw = e instanceof Error ? e.message : t("dashboard.deleteFailed");
+                                  let msg = raw;
+                                  try {
+                                    const parsed = JSON.parse(raw);
+                                    if (parsed?.detail === "Not Found" || parsed?.detail === "Extraction not found")
+                                      msg = t("common.alerts.recordNotFound");
+                                  } catch {
+                                    if (raw.startsWith("{")) msg = t("common.alerts.serverError");
+                                  }
+                                  if (Platform.OS === "web" && typeof window !== "undefined") {
+                                    window.alert(msg);
+                                  } else {
+                                    Alert.alert(t("common.error"), msg);
+                                  }
+                                }
+                              };
+                              if (Platform.OS === "web" && typeof window !== "undefined") {
+                                if (window.confirm(`${t("wellness.deleteSleepEntryTitle")}\n${t("wellness.deleteSleepEntryMessage")}`)) {
+                                  await doDelete();
+                                }
+                              } else {
+                                Alert.alert(
+                                  t("wellness.deleteSleepEntryTitle"),
+                                  t("wellness.deleteSleepEntryMessage"),
+                                  [
+                                    { text: t("common.cancel"), style: "cancel" },
+                                    { text: t("wellness.deleteSleepEntryConfirm"), style: "destructive", onPress: doDelete },
+                                  ]
+                                );
+                              }
+                            }
+                          }}
+                        >
+                          <Text style={styles.sleepHistoryDropdownItemTextDestructive}>{t("wellness.deleteEntry")}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                     {entry.source === "photo" && entry.extraction && sleepReanalyzeExtId === entry.extraction.id ? (
                       <View style={{ marginTop: 6, marginBottom: 8 }}>
                         <TextInput
@@ -2225,10 +2200,24 @@ export function DashboardScreen({
                   : (wellnessWeek.find((w) => w.date === editWellnessDate) ?? null)
               }
               initialWeight={athleteProfile?.weight_kg ?? null}
-              onClose={() => setEditWellnessDate(null)}
-              onSaved={() => {
+              onClose={() => {
                 setEditWellnessDate(null);
-                load();
+                setEditWellnessExtractionId(null);
+              }}
+              onSaved={async () => {
+                const extId = editWellnessExtractionId;
+                setEditWellnessDate(null);
+                setEditWellnessExtractionId(null);
+                await load();
+                if (extId != null) {
+                  try {
+                    await deleteSleepExtraction(extId);
+                    const fresh = await getSleepExtractions(addDays(today, -14), today).catch(() => []);
+                    setSleepExtractions(fresh ?? []);
+                  } catch {
+                    await load();
+                  }
+                }
               }}
             />
           ) : null}
@@ -2454,6 +2443,22 @@ const styles = StyleSheet.create({
   hintRemaining: { fontSize: 12, color: "#94a3b8", marginTop: 8 },
   weeklySleepLine: { fontSize: 14, color: "#e2e8f0", marginTop: 8 },
   sleepHistoryRowText: { fontSize: 14, color: "#e2e8f0", marginTop: 0 },
+  sleepHistoryDropdown: {
+    marginTop: 4,
+    marginBottom: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+  },
+  sleepHistoryDropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  sleepHistoryDropdownItemText: { fontSize: 15 },
+  sleepHistoryDropdownItemTextDestructive: { fontSize: 15, color: "#ef4444", fontWeight: "600" },
   calendarLink: { marginBottom: 8, paddingVertical: 4 },
   intervalsActionsRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   intervalsLinkText: { fontSize: 14, color: "#38bdf8" },
