@@ -505,14 +505,18 @@ async def run_daily_decision(
     system_prompt = _build_system_prompt(
         locale, had_workout_today, is_evening=is_evening, client_local_hour=client_local_hour
     )
-    model = genai.GenerativeModel(
-        settings.gemini_model,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
-    )
-    response = await run_generate_content(model, [system_prompt, "\n\nContext:\n" + context])
-    if not response or not response.text:
-        return OrchestratorResponse(decision=Decision.SKIP, reason="No AI response; defaulting to Skip.")
+    try:
+        model = genai.GenerativeModel(
+            settings.gemini_model,
+            generation_config=GENERATION_CONFIG,
+            safety_settings=SAFETY_SETTINGS,
+        )
+        response = await run_generate_content(model, [system_prompt, "\n\nContext:\n" + context])
+        if not response or not response.text:
+            return OrchestratorResponse(decision=Decision.SKIP, reason="No AI response; defaulting to Skip.")
+    except Exception:
+        logger.exception("Orchestrator Gemini call failed for user_id=%s", user_id)
+        return OrchestratorResponse(decision=Decision.SKIP, reason="AI unavailable; defaulting to Skip.")
     try:
         result = _parse_llm_response(response.text)
     except (json.JSONDecodeError, Exception) as e:
