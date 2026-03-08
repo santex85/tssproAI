@@ -16,21 +16,21 @@ export function HeroSection({ appUrl }: { appUrl: string }) {
             </h1>
 
             <p className="text-xl text-white/70 mb-8 leading-relaxed">
-              Track nutrition, sleep, training load and daily readiness in one app. Get actionable AI guidance, not just charts.
+              Stop guessing your daily readiness. Let AI analyze your recovery, nutrition, and training load to tell you exactly how hard to push today.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center sm:items-start">
               <a
                 href={appUrl}
-                className="inline-block px-8 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold text-lg transition shadow-lg shadow-emerald-600/20 text-center"
+                className="inline-block px-8 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold text-lg transition shadow-lg shadow-emerald-600/20 text-center w-full sm:w-auto"
               >
-                Start free trial
+                Start your 7-day trial
               </a>
               <a
                 href={appUrl}
-                className="inline-block px-8 py-4 bg-white/10 hover:bg-white/20 rounded-lg font-semibold text-lg transition backdrop-blur text-center"
+                className="inline-block px-8 py-4 text-white/60 hover:text-white rounded-lg font-semibold text-lg transition text-center w-full sm:w-auto"
               >
-                Open web app
+                Log in
               </a>
             </div>
 

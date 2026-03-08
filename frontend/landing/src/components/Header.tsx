@@ -51,7 +51,7 @@ export function Header({ appUrl }: { appUrl: string }) {
               href={appUrl}
               className="inline-block px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-medium text-sm transition"
             >
-              Start free trial
+              Start your 7-day trial
             </a>
           </div>
 
@@ -76,7 +76,7 @@ export function Header({ appUrl }: { appUrl: string }) {
                 FAQ
               </button>
               <a href={appUrl} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-medium text-sm transition w-full mt-2 text-center block">
-                Start free trial
+                Start your 7-day trial
               </a>
             </nav>
           </div>

@@ -14,7 +14,7 @@ export function FinalCTASection({ appUrl }: { appUrl: string }) {
           href={appUrl}
           className="inline-block px-10 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-lg font-semibold text-lg transition shadow-lg shadow-emerald-600/20"
         >
-          Start free trial
+          Start your 7-day trial
         </a>
       </div>
     </section>

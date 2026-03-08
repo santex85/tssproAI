@@ -5,17 +5,16 @@ export function PricingSection() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly");
 
   const freeFeatures = [
+    "3 AI food analyses / week",
     "Basic nutrition tracking",
     "Manual workout logging",
     "Daily wellness check-ins",
-    "Limited AI interactions",
     "Basic analytics",
   ];
 
   const proFeatures = [
+    "Unlimited AI food analyses",
     "Everything in Free",
-    "Unlimited AI interactions",
-    "Photo meal analysis",
     "Extended nutrient tracking",
     "AI Orchestrator for smart recommendations",
     "Advanced insights and trends",

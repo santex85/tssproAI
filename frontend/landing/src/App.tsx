@@ -8,6 +8,7 @@ import { PhotoAnalysisSection } from "./components/PhotoAnalysisSection";
 import { HowItWorksSection } from "./components/HowItWorksSection";
 import { PricingSection } from "./components/PricingSection";
 import { FAQSection } from "./components/FAQSection";
+import { TestimonialsSection } from "./components/TestimonialsSection";
 import { FinalCTASection } from "./components/FinalCTASection";
 
 const APP_URL = import.meta.env.VITE_APP_URL || "https://app.tsspro.tech";
@@ -24,6 +25,7 @@ export default function App() {
         <PhotoAnalysisSection />
         <HowItWorksSection />
         <PricingSection />
+        <TestimonialsSection />
         <FAQSection />
         <FinalCTASection appUrl={APP_URL} />
       </main>
