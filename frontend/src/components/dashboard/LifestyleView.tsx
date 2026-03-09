@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Modal,
+  Pressable,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import {
@@ -86,6 +88,7 @@ export function LifestyleView({
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const [webMenuEntry, setWebMenuEntry] = useState<SleepHistoryEntry | null>(null);
 
   const isDark = colors.background === "#0D0D0D" || colors.background === "#1a1a2e";
   const cardBg = isDark ? LIFESTYLE_BG_SOFT_DARK : LIFESTYLE_BG_SOFT;
@@ -166,6 +169,10 @@ export function LifestyleView({
   };
 
   const showRowMenu = (entry: SleepHistoryEntry) => {
+    if (Platform.OS === "web") {
+      setWebMenuEntry(entry);
+      return;
+    }
     const buttons: { text: string; onPress?: () => void; style?: "cancel" | "destructive" }[] = [
       {
         text: t("wellness.edit"),
@@ -392,6 +399,58 @@ export function LifestyleView({
           ))}
         </View>
       ) : null}
+
+      {Platform.OS === "web" && webMenuEntry ? (
+        <Modal visible transparent animationType="fade">
+          <Pressable
+            style={[styles.webMenuBackdrop, Platform.OS === "web" && { backdropFilter: "blur(4px)" }]}
+            onPress={() => setWebMenuEntry(null)}
+          >
+            <Pressable
+              style={[styles.webMenuBox, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <TouchableOpacity
+                style={styles.webMenuItem}
+                onPress={() => {
+                  onEditSleepEntry(webMenuEntry.date, webMenuEntry.extraction?.id ?? null);
+                  setWebMenuEntry(null);
+                }}
+              >
+                <Text style={[styles.webMenuItemText, { color: colors.text }]}>{t("wellness.edit")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.webMenuItem}
+                onPress={() => {
+                  if (webMenuEntry.source === "manual") {
+                    onDeleteManualSleepEntry(webMenuEntry.date);
+                  } else {
+                    confirmDelete(webMenuEntry);
+                  }
+                  setWebMenuEntry(null);
+                }}
+              >
+                <Text style={[styles.webMenuItemText, { color: "#dc2626" }]}>{t("wellness.deleteEntry")}</Text>
+              </TouchableOpacity>
+              {webMenuEntry.source === "photo" && webMenuEntry.extraction?.can_reanalyze ? (
+                <TouchableOpacity
+                  style={styles.webMenuItem}
+                  onPress={() => {
+                    setSleepReanalyzeExtId(webMenuEntry.extraction!.id);
+                    setSleepReanalyzeCorrection("");
+                    setWebMenuEntry(null);
+                  }}
+                >
+                  <Text style={[styles.webMenuItemText, { color: colors.text }]}>{t("wellness.reanalyze")}</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity style={styles.webMenuItem} onPress={() => setWebMenuEntry(null)}>
+                <Text style={[styles.webMenuItemText, { color: colors.textMuted }]}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -530,6 +589,27 @@ const styles = StyleSheet.create({
     padding: 8,
     margin: -8,
     ...(Platform.OS === "web" ? { cursor: "pointer" as const } : {}),
+  },
+  webMenuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webMenuBox: {
+    minWidth: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 4,
+    ...(Platform.OS === "web" ? { boxShadow: "0 4px 12px rgba(0,0,0,0.15)" } : {}),
+  },
+  webMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    ...(Platform.OS === "web" ? { cursor: "pointer" as const } : {}),
+  },
+  webMenuItemText: {
+    fontSize: 16,
   },
   smallBtn: {
     paddingHorizontal: 10,
