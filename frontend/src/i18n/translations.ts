@@ -204,6 +204,8 @@ export const ru = {
     sendToAnalysis: "Отправить на анализ",
     reanalyzePlaceholder: "Например: actual sleep was 7.5 hours",
     totalLabel: "Всего",
+    rhrTooltip: "RHR (Resting Heart Rate) — пульс в покое утром. Низкий RHR обычно указывает на хорошее восстановление.",
+    hrvTooltip: "HRV (Heart Rate Variability) — вариабельность пульса. Высокий HRV — признак готовности к нагрузкам.",
   },
   chat: {
     title: "AI-тренер",
@@ -305,7 +307,7 @@ export const ru = {
     addWorkoutNotes: "Заметки",
     scanPhoto: "Скан фото",
     tabToday: "Сегодня",
-    tabAnalysis: "Анализ",
+    tabAnalysis: "Про атлеты",
   },
   intervals: {
     titleLink: "Подключить Intervals.icu",
@@ -661,6 +663,8 @@ export const en = {
     sendToAnalysis: "Send for analysis",
     reanalyzePlaceholder: "E.g.: actual sleep was 7.5 hours",
     totalLabel: "Total",
+    rhrTooltip: "RHR (Resting Heart Rate) — morning resting pulse. Low RHR usually indicates good recovery.",
+    hrvTooltip: "HRV (Heart Rate Variability) — pulse variability. High HRV indicates readiness for training.",
   },
   chat: {
     title: "AI coach",
@@ -762,7 +766,7 @@ export const en = {
     addWorkoutNotes: "Notes",
     scanPhoto: "Scan photo",
     tabToday: "Today",
-    tabAnalysis: "Analysis",
+    tabAnalysis: "For Athletes",
   },
   intervals: {
     titleLink: "Connect Intervals.icu",

@@ -1865,60 +1865,6 @@ export function DashboardScreen({
               sleepReanalyzingId={sleepReanalyzingId}
             />
 
-          <View style={glassCardStyle}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardTitle}>{t("workouts.title")}</Text>
-              <View style={styles.cardTitleActions}>
-                <TouchableOpacity
-                  onPress={onSelectFitFile}
-                  disabled={fitUploading}
-                  style={fitUploading ? styles.syncBtnDisabled : undefined}
-                >
-                  {fitUploading ? (
-                    <ActivityIndicator size="small" color="#38bdf8" />
-                  ) : (
-                    <Text style={styles.intervalsLinkText}>{t("workouts.uploadFit")}</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setWorkoutAddVisible(true)}>
-                  <Text style={styles.intervalsLinkText}>{t("workouts.add")}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text style={styles.hint}>{t("workouts.hint")}</Text>
-            {effectiveWellnessToday?.sport_info?.length ? (() => {
-              const ride = effectiveWellnessToday.sport_info!.find((s) => s.type === "Ride") ?? effectiveWellnessToday.sport_info![0];
-              const eftp = ride?.eftp != null ? Math.round(ride.eftp) : null;
-              const pmax = ride?.pMax != null ? Math.round(ride.pMax) : null;
-              const show = eftp != null || pmax != null;
-              return show ? (
-                <Text style={[styles.hint, { marginBottom: 6 }]}>
-                  {eftp != null ? `eFTP ${eftp}` : ""}{eftp != null && pmax != null ? " · " : ""}{pmax != null ? `pMax ${pmax}` : ""}
-                </Text>
-              ) : null;
-            })() : null}
-            {workouts.length > 0 ? workouts.map((act) => (
-              <TouchableOpacity
-                key={act.id}
-                style={styles.activityRow}
-                onPress={() => setSelectedWorkout(act)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.calendarDate}>{formatEventDate(act.start_date)}</Text>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.calendarTitle}>{act.name || t("dashboard.workoutFallbackName")}</Text>
-                  <Text style={styles.hint}>
-                    {formatDuration(act.duration_sec ?? undefined)}
-                    {act.distance_m != null ? ` · ${(act.distance_m / 1000).toFixed(1)} km` : ""}
-                    {act.tss != null ? ` · TSS ${Math.round(act.tss)}` : ""}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )) : (
-              <Text style={styles.placeholder}>{t("dashboard.noWorkoutsHint")}</Text>
-            )}
-          </View>
-
           <>
             {lastAnalysisResult ? (
                 <View style={glassCardStyle}>
@@ -1975,6 +1921,7 @@ export function DashboardScreen({
           ) : null}
 
           {activeTab === "analysis" ? (
+            <>
             <PerformanceView
               workoutFitness={workoutFitness}
               effectiveWellnessToday={effectiveWellnessToday}
@@ -2003,6 +1950,61 @@ export function DashboardScreen({
               }
               syncLoading={intervalsSyncLoading}
             />
+
+            <View style={glassCardStyle}>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle}>{t("workouts.title")}</Text>
+                <View style={styles.cardTitleActions}>
+                  <TouchableOpacity
+                    onPress={onSelectFitFile}
+                    disabled={fitUploading}
+                    style={fitUploading ? styles.syncBtnDisabled : undefined}
+                  >
+                    {fitUploading ? (
+                      <ActivityIndicator size="small" color="#38bdf8" />
+                    ) : (
+                      <Text style={styles.intervalsLinkText}>{t("workouts.uploadFit")}</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setWorkoutAddVisible(true)}>
+                    <Text style={styles.intervalsLinkText}>{t("workouts.add")}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={styles.hint}>{t("workouts.hint")}</Text>
+              {effectiveWellnessToday?.sport_info?.length ? (() => {
+                const ride = effectiveWellnessToday.sport_info!.find((s) => s.type === "Ride") ?? effectiveWellnessToday.sport_info![0];
+                const eftp = ride?.eftp != null ? Math.round(ride.eftp) : null;
+                const pmax = ride?.pMax != null ? Math.round(ride.pMax) : null;
+                const show = eftp != null || pmax != null;
+                return show ? (
+                  <Text style={[styles.hint, { marginBottom: 6 }]}>
+                    {eftp != null ? `eFTP ${eftp}` : ""}{eftp != null && pmax != null ? " · " : ""}{pmax != null ? `pMax ${pmax}` : ""}
+                  </Text>
+                ) : null;
+              })() : null}
+              {workouts.length > 0 ? workouts.map((act) => (
+                <TouchableOpacity
+                  key={act.id}
+                  style={styles.activityRow}
+                  onPress={() => setSelectedWorkout(act)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.calendarDate}>{formatEventDate(act.start_date)}</Text>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.calendarTitle}>{act.name || t("dashboard.workoutFallbackName")}</Text>
+                    <Text style={styles.hint}>
+                      {formatDuration(act.duration_sec ?? undefined)}
+                      {act.distance_m != null ? ` · ${(act.distance_m / 1000).toFixed(1)} km` : ""}
+                      {act.tss != null ? ` · TSS ${Math.round(act.tss)}` : ""}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )) : (
+                <Text style={styles.placeholder}>{t("dashboard.noWorkoutsHint")}</Text>
+              )}
+            </View>
+            </>
           ) : null}
 
           {entryToEdit ? (

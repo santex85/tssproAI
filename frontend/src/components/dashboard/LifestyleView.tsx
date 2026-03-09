@@ -17,6 +17,7 @@ import {
   type WellnessDay,
   type SleepExtractionSummary,
 } from "../../api/client";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../theme";
 import { useTranslation } from "../../i18n";
 
@@ -85,6 +86,9 @@ export function LifestyleView({
   const isDark = colors.background === "#0D0D0D" || colors.background === "#1a1a2e";
   const cardBg = isDark ? LIFESTYLE_BG_SOFT_DARK : LIFESTYLE_BG_SOFT;
   const cardBorder = LIFESTYLE_BORDER_SOFT;
+
+  const showRhrInfo = () => Alert.alert("RHR", t("wellness.rhrTooltip"));
+  const showHrvInfo = () => Alert.alert("HRV", t("wellness.hrvTooltip"));
 
   const handleDeleteSleepEntry = async (extractionId: number) => {
     try {
@@ -177,16 +181,34 @@ export function LifestyleView({
         <Text style={[styles.hint, styles.disclaimer, { color: colors.textMuted }]}>{t("wellness.disclaimer")}</Text>
         {(effectiveWellnessToday || athleteProfile?.weight_kg != null || effectiveWellnessToday?.weight_kg != null) ? (
           <>
-            <Text style={[styles.wellnessMetricsLine, { color: colors.text, marginTop: 8 }]}>
-              {effectiveWellnessToday?.sleep_hours != null
-                ? `${t("wellness.sleep")}\u00A0${formatSleepDuration(effectiveWellnessToday.sleep_hours, t)}`
-                : `${t("wellness.sleep")} —`}
-              {effectiveWellnessToday?.rhr != null ? ` · RHR\u00A0${effectiveWellnessToday.rhr}` : " · RHR —"}
-              {effectiveWellnessToday?.hrv != null ? ` · HRV\u00A0${effectiveWellnessToday.hrv}` : " · HRV —"}
-              {(effectiveWellnessToday?.weight_kg ?? athleteProfile?.weight_kg) != null
-                ? ` · ${t("wellness.weight")}\u00A0${effectiveWellnessToday?.weight_kg ?? athleteProfile?.weight_kg}\u00A0${t("wellness.weightKg")}`
-                : ` · ${t("wellness.weight")} —`}
-            </Text>
+            <View style={[styles.wellnessMetricsRow, { marginTop: 8 }]}>
+              <Text style={[styles.wellnessMetricsLine, { color: colors.text }]}>
+                {effectiveWellnessToday?.sleep_hours != null
+                  ? `${t("wellness.sleep")}\u00A0${formatSleepDuration(effectiveWellnessToday.sleep_hours, t)}`
+                  : `${t("wellness.sleep")} —`}
+              </Text>
+              <View style={styles.metricWithInfo}>
+                <Text style={[styles.wellnessMetricsLine, { color: colors.text }]}>
+                  {effectiveWellnessToday?.rhr != null ? ` · RHR\u00A0${effectiveWellnessToday.rhr}` : " · RHR —"}
+                </Text>
+                <TouchableOpacity onPress={showRhrInfo} hitSlop={8} style={styles.infoBtn}>
+                  <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.metricWithInfo}>
+                <Text style={[styles.wellnessMetricsLine, { color: colors.text }]}>
+                  {effectiveWellnessToday?.hrv != null ? ` · HRV\u00A0${effectiveWellnessToday.hrv}` : " · HRV —"}
+                </Text>
+                <TouchableOpacity onPress={showHrvInfo} hitSlop={8} style={styles.infoBtn}>
+                  <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.wellnessMetricsLine, { color: colors.text }]}>
+                {(effectiveWellnessToday?.weight_kg ?? athleteProfile?.weight_kg) != null
+                  ? ` · ${t("wellness.weight")}\u00A0${effectiveWellnessToday?.weight_kg ?? athleteProfile?.weight_kg}\u00A0${t("wellness.weightKg")}`
+                  : ` · ${t("wellness.weight")} —`}
+              </Text>
+            </View>
             {effectiveWellnessToday?.sleep_hours == null && (
               <Text style={[styles.hint, { color: colors.textMuted }]}>{t("wellness.manualHint")}</Text>
             )}
@@ -396,10 +418,23 @@ const styles = StyleSheet.create({
   placeholder: {
     fontSize: 16,
   },
+  wellnessMetricsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
   wellnessMetricsLine: {
     fontSize: 20,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  metricWithInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  infoBtn: {
+    padding: 4,
+    marginLeft: 2,
   },
   weeklyBlock: {
     marginTop: 4,
