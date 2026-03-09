@@ -57,6 +57,8 @@ export function LifestyleView({
   weeklySleepDeficit,
   today,
   onEditPress,
+  onEditSleepEntry,
+  onDeleteManualSleepEntry,
   onOpenCamera,
   onLoad,
   sleepReanalyzeExtId,
@@ -72,6 +74,8 @@ export function LifestyleView({
   weeklySleepDeficit: number;
   today: string;
   onEditPress: () => void;
+  onEditSleepEntry: (date: string, extractionId?: number | null) => void;
+  onDeleteManualSleepEntry: (date: string) => void;
   onOpenCamera: () => void;
   onLoad: () => void;
   sleepReanalyzeExtId: number | null;
@@ -159,6 +163,37 @@ export function LifestyleView({
         ]
       );
     }
+  };
+
+  const showRowMenu = (entry: SleepHistoryEntry) => {
+    const buttons: { text: string; onPress?: () => void; style?: "cancel" | "destructive" }[] = [
+      {
+        text: t("wellness.edit"),
+        onPress: () => onEditSleepEntry(entry.date, entry.extraction?.id ?? null),
+      },
+      {
+        text: t("wellness.deleteEntry"),
+        style: "destructive",
+        onPress: () => {
+          if (entry.source === "manual") {
+            onDeleteManualSleepEntry(entry.date);
+          } else {
+            confirmDelete(entry);
+          }
+        },
+      },
+    ];
+    if (entry.source === "photo" && entry.extraction?.can_reanalyze) {
+      buttons.push({
+        text: t("wellness.reanalyze"),
+        onPress: () => {
+          setSleepReanalyzeExtId(entry.extraction!.id);
+          setSleepReanalyzeCorrection("");
+        },
+      });
+    }
+    buttons.push({ text: t("common.cancel"), style: "cancel" });
+    Alert.alert("", "", buttons);
   };
 
   return (
@@ -303,25 +338,16 @@ export function LifestyleView({
                     </Text>
                   ) : null}
                 </View>
-                <View style={styles.historyActions}>
-                  {entry.source === "photo" && entry.extraction?.can_reanalyze && sleepReanalyzeExtId !== entry.extraction.id ? (
-                    <TouchableOpacity
-                      style={[styles.smallBtn, styles.reanalyzeBtn]}
-                      onPress={() => {
-                        setSleepReanalyzeExtId(entry.extraction!.id);
-                        setSleepReanalyzeCorrection("");
-                      }}
-                      disabled={sleepReanalyzingId != null}
-                    >
-                      <Text style={styles.smallBtnText}>{t("wellness.reanalyze")}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  {entry.source === "photo" && entry.extraction ? (
-                    <TouchableOpacity style={[styles.smallBtn, styles.deleteBtn]} onPress={() => confirmDelete(entry)}>
-                      <Text style={styles.deleteBtnText}>{t("wellness.deleteEntry")}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
+                <TouchableOpacity
+                  style={styles.overflowTrigger}
+                  onPress={() => showRowMenu(entry)}
+                  disabled={sleepReanalyzingId != null}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.menu")}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
               {entry.source === "photo" && entry.extraction && sleepReanalyzeExtId === entry.extraction.id ? (
                 <View style={styles.reanalyzeForm}>
@@ -500,10 +526,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 0,
   },
-  historyActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  overflowTrigger: {
+    padding: 8,
+    margin: -8,
+    ...(Platform.OS === "web" ? { cursor: "pointer" as const } : {}),
   },
   smallBtn: {
     paddingHorizontal: 10,

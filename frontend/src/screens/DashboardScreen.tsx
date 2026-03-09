@@ -1866,6 +1866,34 @@ export function DashboardScreen({
               weeklySleepDeficit={weeklySleepDeficit}
               today={today}
               onEditPress={() => { setEditWellnessDate(today); setEditWellnessExtractionId(null); }}
+              onEditSleepEntry={(date, extractionId) => {
+                setEditWellnessDate(date);
+                setEditWellnessExtractionId(extractionId ?? null);
+              }}
+              onDeleteManualSleepEntry={(date) => {
+                const doDelete = async () => {
+                  try {
+                    await deleteWellness(date);
+                    await load();
+                  } catch (e) {
+                    Alert.alert(t("common.error"), e instanceof Error ? e.message : t("dashboard.deleteFailed"));
+                  }
+                };
+                if (Platform.OS === "web" && typeof window !== "undefined") {
+                  if (window.confirm(`${t("wellness.deleteWellnessTitle")}\n${t("wellness.deleteWellnessMessage")}`)) {
+                    doDelete();
+                  }
+                } else {
+                  Alert.alert(
+                    t("wellness.deleteWellnessTitle"),
+                    t("wellness.deleteWellnessMessage"),
+                    [
+                      { text: t("common.cancel"), style: "cancel" },
+                      { text: t("wellness.deleteSleepEntryConfirm"), style: "destructive", onPress: doDelete },
+                    ]
+                  );
+                }
+              }}
               onOpenCamera={onOpenCamera}
               onLoad={load}
               sleepReanalyzeExtId={sleepReanalyzeExtId}
