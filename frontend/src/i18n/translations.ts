@@ -339,6 +339,9 @@ export const ru = {
     fromWellness: "Из wellness. Добавляйте тренировки для расчёта по TSS.",
     placeholder: "Добавляйте тренировки вручную или загружайте FIT — CTL/ATL/TSB посчитаются по TSS.",
     sync: "Синхронизировать",
+    ctlTooltip: "Долгосрочная тренировочная нагрузка. Показывает общий уровень формы. Растёт при регулярных тренировках. Рассчитывается по TSS из тренировок.",
+    atlTooltip: "Краткосрочная нагрузка. Отражает усталость от недавних тренировок. Снижается при отдыхе. Рассчитывается по TSS из тренировок.",
+    tsbTooltip: "Баланс формы и усталости. TSB = CTL - ATL. Положительный — свежесть, отрицательный — усталость. Рассчитывается по TSS из тренировок.",
   },
   workouts: {
     title: "Тренировки",
@@ -798,6 +801,9 @@ export const en = {
     fromWellness: "From wellness. Add workouts for TSS-based calculation.",
     placeholder: "Add workouts manually or upload FIT — CTL/ATL/TSB will be calculated.",
     sync: "Sync",
+    ctlTooltip: "Long-term training load. Shows overall fitness level. Increases with regular training. Calculated from workout TSS.",
+    atlTooltip: "Short-term load. Reflects fatigue from recent workouts. Decreases with rest. Calculated from workout TSS.",
+    tsbTooltip: "Balance of fitness and fatigue. TSB = CTL - ATL. Positive — freshness, negative — fatigue. Calculated from workout TSS.",
   },
   workouts: {
     title: "Workouts",

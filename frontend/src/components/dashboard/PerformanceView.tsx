@@ -82,22 +82,28 @@ export function PerformanceView({
   };
 
   const showCtlInfo = () => {
-    Alert.alert(
-      "CTL (Chronic Training Load)",
-      "Долгосрочная тренировочная нагрузка. Показывает общий уровень формы. Растёт при регулярных тренировках."
-    );
+    const msg = t("fitness.ctlTooltip");
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`CTL\n\n${msg}`);
+    } else {
+      Alert.alert("CTL", msg);
+    }
   };
   const showAtlInfo = () => {
-    Alert.alert(
-      "ATL (Acute Training Load)",
-      "Краткосрочная нагрузка. Отражает усталость от недавних тренировок. Снижается при отдыхе."
-    );
+    const msg = t("fitness.atlTooltip");
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`ATL\n\n${msg}`);
+    } else {
+      Alert.alert("ATL", msg);
+    }
   };
   const showTsbInfo = () => {
-    Alert.alert(
-      "TSB (Training Stress Balance)",
-      "Баланс формы и усталости. TSB = CTL - ATL. Положительный — свежесть, отрицательный — усталость."
-    );
+    const msg = t("fitness.tsbTooltip");
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`TSB\n\n${msg}`);
+    } else {
+      Alert.alert("TSB", msg);
+    }
   };
 
   const hasFitness =

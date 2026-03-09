@@ -326,6 +326,9 @@ export const es = {
     fromWellness: "Desde bienestar. Añade entrenamientos para el cálculo por TSS.",
     placeholder: "Añade entrenamientos manualmente o sube FIT — se calcularán CTL/ATL/TSB.",
     sync: "Sincronizar",
+    ctlTooltip: "Long-term training load. Shows overall fitness level. Increases with regular training. Calculated from workout TSS.",
+    atlTooltip: "Short-term load. Reflects fatigue from recent workouts. Decreases with rest. Calculated from workout TSS.",
+    tsbTooltip: "Balance of fitness and fatigue. TSB = CTL - ATL. Positive — freshness, negative — fatigue. Calculated from workout TSS.",
   },
   workouts: {
     title: "Entrenamientos",
