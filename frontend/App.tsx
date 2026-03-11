@@ -7,7 +7,7 @@ Sentry.init({
   environment: process.env.EXPO_PUBLIC_APP_ENV || "development",
 });
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -44,16 +44,9 @@ import { ChatScreen } from "./src/screens/ChatScreen";
 import { AnalyticsScreen } from "./src/screens/AnalyticsScreen";
 import { AthleteProfileScreen } from "./src/screens/AthleteProfileScreen";
 import type { AuthUser } from "./src/api/client";
-
-const CameraScreen = React.lazy(() =>
-  import("./src/screens/CameraScreen").then((m) => ({ default: m.CameraScreen }))
-);
-const PricingScreen = React.lazy(() =>
-  import("./src/screens/PricingScreen").then((m) => ({ default: m.PricingScreen }))
-);
-const BillingScreen = React.lazy(() =>
-  import("./src/screens/BillingScreen").then((m) => ({ default: m.BillingScreen }))
-);
+import { CameraScreen } from "./src/screens/CameraScreen";
+import { PricingScreen } from "./src/screens/PricingScreen";
+import { BillingScreen } from "./src/screens/BillingScreen";
 import { useTranslation, I18nProvider } from "./src/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import * as Font from "expo-font";
@@ -297,28 +290,26 @@ function AppContent() {
 
         {cameraVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
-              <CameraScreen
-                onClose={closeCamera}
-                onOpenPricing={() => setPricingVisible(true)}
-                onSaved={() => {
-                  setRefreshNutritionTrigger((t) => t + 1);
-                  setCameraVisible(false);
-                }}
-                onSleepSaved={(saved) => {
-                  setLastSavedSleep(saved ?? null);
-                  setRefreshSleepTrigger((t) => t + 1);
-                  setRefreshWellnessTrigger((t) => t + 1);
-                  setCameraVisible(false);
-                }}
-                onWellnessSaved={(wellness, date) => {
-                  setLastSavedWellness({ date, ...wellness });
-                  setRefreshSleepTrigger((t) => t + 1);
-                  setRefreshWellnessTrigger((t) => t + 1);
-                  setCameraVisible(false);
-                }}
-              />
-            </Suspense>
+            <CameraScreen
+              onClose={closeCamera}
+              onOpenPricing={() => setPricingVisible(true)}
+              onSaved={() => {
+                setRefreshNutritionTrigger((t) => t + 1);
+                setCameraVisible(false);
+              }}
+              onSleepSaved={(saved) => {
+                setLastSavedSleep(saved ?? null);
+                setRefreshSleepTrigger((t) => t + 1);
+                setRefreshWellnessTrigger((t) => t + 1);
+                setCameraVisible(false);
+              }}
+              onWellnessSaved={(wellness, date) => {
+                setLastSavedWellness({ date, ...wellness });
+                setRefreshSleepTrigger((t) => t + 1);
+                setRefreshWellnessTrigger((t) => t + 1);
+                setCameraVisible(false);
+              }}
+            />
           </View>
         )}
 
@@ -333,23 +324,19 @@ function AppContent() {
 
         {pricingVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
-              <PricingScreen onClose={() => setPricingVisible(false)} />
-            </Suspense>
+            <PricingScreen onClose={() => setPricingVisible(false)} />
           </View>
         )}
 
         {billingVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
-              <BillingScreen
-                onClose={() => setBillingVisible(false)}
-                onOpenPricing={() => {
-                  setBillingVisible(false);
-                  setPricingVisible(true);
-                }}
-              />
-            </Suspense>
+            <BillingScreen
+              onClose={() => setBillingVisible(false)}
+              onOpenPricing={() => {
+                setBillingVisible(false);
+                setPricingVisible(true);
+              }}
+            />
           </View>
         )}
 
