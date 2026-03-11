@@ -884,6 +884,7 @@ const WorkoutPreviewModal = React.memo(function WorkoutPreviewModal({
   onClose: () => void;
   onSave: (file: Blob) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const raw = preview.raw as Record<string, unknown> | undefined;
   const handleSave = async () => {
