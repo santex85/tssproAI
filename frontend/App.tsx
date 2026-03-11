@@ -7,7 +7,7 @@ Sentry.init({
   environment: process.env.EXPO_PUBLIC_APP_ENV || "development",
 });
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -39,14 +39,27 @@ import { QueryProvider } from "./src/query/provider";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
-import { CameraScreen } from "./src/screens/CameraScreen";
-import { ChatScreen } from "./src/screens/ChatScreen";
-import { AthleteProfileScreen } from "./src/screens/AthleteProfileScreen";
-import { AnalyticsScreen } from "./src/screens/AnalyticsScreen";
 import { IntervalsLinkScreen } from "./src/screens/IntervalsLinkScreen";
-import { PricingScreen } from "./src/screens/PricingScreen";
-import { BillingScreen } from "./src/screens/BillingScreen";
 import type { AuthUser } from "./src/api/client";
+
+const CameraScreen = React.lazy(() =>
+  import("./src/screens/CameraScreen").then((m) => ({ default: m.CameraScreen }))
+);
+const ChatScreen = React.lazy(() =>
+  import("./src/screens/ChatScreen").then((m) => ({ default: m.ChatScreen }))
+);
+const AnalyticsScreen = React.lazy(() =>
+  import("./src/screens/AnalyticsScreen").then((m) => ({ default: m.AnalyticsScreen }))
+);
+const AthleteProfileScreen = React.lazy(() =>
+  import("./src/screens/AthleteProfileScreen").then((m) => ({ default: m.AthleteProfileScreen }))
+);
+const PricingScreen = React.lazy(() =>
+  import("./src/screens/PricingScreen").then((m) => ({ default: m.PricingScreen }))
+);
+const BillingScreen = React.lazy(() =>
+  import("./src/screens/BillingScreen").then((m) => ({ default: m.BillingScreen }))
+);
 import { useTranslation, I18nProvider } from "./src/i18n";
 import { Ionicons } from "@expo/vector-icons";
 import * as Font from "expo-font";
@@ -258,11 +271,13 @@ function AppContent() {
               options={{ tabBarLabel: t("tabs.chat") }}
             >
               {({ navigation }) => (
-                <ChatScreen
-                  user={user}
-                  onClose={() => navigation.navigate("Home")}
-                  onOpenPricing={() => setPricingVisible(true)}
-                />
+                <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+                  <ChatScreen
+                    user={user}
+                    onClose={() => navigation.navigate("Home")}
+                    onOpenPricing={() => setPricingVisible(true)}
+                  />
+                </Suspense>
               )}
             </Tab.Screen>
             <Tab.Screen
@@ -270,7 +285,9 @@ function AppContent() {
               options={{ tabBarLabel: t("tabs.analytics") }}
             >
               {({ navigation }) => (
-                <AnalyticsScreen onClose={() => navigation.navigate("Home")} onOpenPricing={() => setPricingVisible(true)} />
+                <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+                  <AnalyticsScreen onClose={() => navigation.navigate("Home")} onOpenPricing={() => setPricingVisible(true)} />
+                </Suspense>
               )}
             </Tab.Screen>
             <Tab.Screen
@@ -278,11 +295,13 @@ function AppContent() {
               options={{ tabBarLabel: t("tabs.profile") }}
             >
               {({ navigation }) => (
-                <AthleteProfileScreen
-                  onClose={() => navigation.navigate("Home")}
-                  onOpenPricing={() => setPricingVisible(true)}
-                  onOpenBilling={() => setBillingVisible(true)}
-                />
+                <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+                  <AthleteProfileScreen
+                    onClose={() => navigation.navigate("Home")}
+                    onOpenPricing={() => setPricingVisible(true)}
+                    onOpenBilling={() => setBillingVisible(true)}
+                  />
+                </Suspense>
               )}
             </Tab.Screen>
           </Tab.Navigator>
@@ -290,26 +309,28 @@ function AppContent() {
 
         {cameraVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <CameraScreen
-              onClose={closeCamera}
-              onOpenPricing={() => setPricingVisible(true)}
-              onSaved={() => {
-                setRefreshNutritionTrigger((t) => t + 1);
-                setCameraVisible(false);
-              }}
-              onSleepSaved={(saved) => {
-                setLastSavedSleep(saved ?? null);
-                setRefreshSleepTrigger((t) => t + 1);
-                setRefreshWellnessTrigger((t) => t + 1);
-                setCameraVisible(false);
-              }}
-              onWellnessSaved={(wellness, date) => {
-                setLastSavedWellness({ date, ...wellness });
-                setRefreshSleepTrigger((t) => t + 1);
-                setRefreshWellnessTrigger((t) => t + 1);
-                setCameraVisible(false);
-              }}
-            />
+            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+              <CameraScreen
+                onClose={closeCamera}
+                onOpenPricing={() => setPricingVisible(true)}
+                onSaved={() => {
+                  setRefreshNutritionTrigger((t) => t + 1);
+                  setCameraVisible(false);
+                }}
+                onSleepSaved={(saved) => {
+                  setLastSavedSleep(saved ?? null);
+                  setRefreshSleepTrigger((t) => t + 1);
+                  setRefreshWellnessTrigger((t) => t + 1);
+                  setCameraVisible(false);
+                }}
+                onWellnessSaved={(wellness, date) => {
+                  setLastSavedWellness({ date, ...wellness });
+                  setRefreshSleepTrigger((t) => t + 1);
+                  setRefreshWellnessTrigger((t) => t + 1);
+                  setCameraVisible(false);
+                }}
+              />
+            </Suspense>
           </View>
         )}
 
@@ -324,19 +345,23 @@ function AppContent() {
 
         {pricingVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <PricingScreen onClose={() => setPricingVisible(false)} />
+            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+              <PricingScreen onClose={() => setPricingVisible(false)} />
+            </Suspense>
           </View>
         )}
 
         {billingVisible && (
           <View style={[styles.modal, { backgroundColor: colors.background }]}>
-            <BillingScreen
-              onClose={() => setBillingVisible(false)}
-              onOpenPricing={() => {
-                setBillingVisible(false);
-                setPricingVisible(true);
-              }}
-            />
+            <Suspense fallback={<View style={[styles.root, styles.centered]}><ActivityIndicator size="large" color={colors.primary} /></View>}>
+              <BillingScreen
+                onClose={() => setBillingVisible(false)}
+                onOpenPricing={() => {
+                  setBillingVisible(false);
+                  setPricingVisible(true);
+                }}
+              />
+            </Suspense>
           </View>
         )}
 
