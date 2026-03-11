@@ -748,8 +748,8 @@ async def run_daily_decision(
                     api_key,
                     {
                         "title": result.modified_plan.title,
-                        "start_date": start,
-                        "end_date": end,
+                        "start_date": start.isoformat(),
+                        "end_date": end.isoformat() if end else None,
                         "description": result.modified_plan.description,
                         "type": result.modified_plan.type,
                     },
