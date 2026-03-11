@@ -29,6 +29,7 @@ from app.services.load_metrics import compute_fitness_from_workouts
 from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
+from app.models.sleep_extraction import SleepExtraction
 
 
 # Gemini protobuf Schema does not support these JSON Schema fields.
@@ -314,11 +315,25 @@ def _format_recent_workouts(workouts: list[dict]) -> str:
     for w in workouts:
         d = w.get("date") or "?"
         name = w.get("name") or "Workout"
-        dist = w.get("distance_km")
-        tss = w.get("tss")
-        dist_str = f", {dist} km" if dist is not None else ""
-        tss_str = f", TSS {tss}" if tss is not None else ""
-        lines.append(f"- {d}: {name}{dist_str}{tss_str}")
+        parts = [f"{d}: {name}"]
+
+        if w.get("distance_km"):
+            parts.append(f"{w['distance_km']} km")
+        if w.get("duration_sec"):
+            mins = w["duration_sec"] // 60
+            parts.append(f"{mins} min")
+        if w.get("tss"):
+            parts.append(f"TSS {w['tss']}")
+        if w.get("avg_hr"):
+            parts.append(f"HR {w['avg_hr']}")
+        if w.get("avg_power"):
+            parts.append(f"Power {w['avg_power']}W")
+        if w.get("normalized_power"):
+            parts.append(f"NP {w['normalized_power']}W")
+        if w.get("calories"):
+            parts.append(f"{w['calories']} kcal")
+
+        lines.append(f"- {', '.join(parts)}")
     return "\n".join(lines)
 
 
@@ -335,10 +350,18 @@ def _format_wellness_history(history: list[dict], today_iso: str | None = None) 
         parts = []
         if sleep is not None:
             parts.append(f"Sleep {sleep}h")
+        if h.get("quality_score") is not None:
+            parts.append(f"Quality {h['quality_score']}")
+        if h.get("deep_sleep_min") is not None:
+            parts.append(f"Deep {h['deep_sleep_min']}min")
+        if h.get("rem_min") is not None:
+            parts.append(f"REM {h['rem_min']}min")
         if hrv is not None:
             parts.append(f"HRV {hrv}")
         if rhr is not None:
             parts.append(f"RHR {rhr}")
+        if h.get("spo2_avg") is not None:
+            parts.append(f"SpO2 {h['spo2_avg']}%")
         lines.append(f"- {d}{label}: {', '.join(parts) or '—'}")
     return "\n".join(lines)
 
@@ -502,6 +525,12 @@ async def run_daily_decision(
             Workout.start_date < to_start_utc,
         ).order_by(Workout.start_date.desc()).limit(10)
     )
+    r_sleep = await session.execute(
+        select(SleepExtraction.extracted_data).where(
+            SleepExtraction.user_id == user_id,
+            SleepExtraction.created_at >= today_start_utc - timedelta(days=7),
+        ).order_by(SleepExtraction.created_at.desc()).limit(7)
+    )
     r_creds = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id))
 
     # Process food sum
@@ -569,9 +598,34 @@ async def run_daily_decision(
             "sleep_hours": row[1], "rhr": row[2], "hrv": row[3], "ctl": row[4], "atl": row[5], "tsb": row[6], "weight_kg": row[7],
         })
 
+    sleep_details: dict[str, dict[str, Any]] = {}
+    for row in r_sleep.all():
+        try:
+            data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            sleep_date = data.get("date")
+            if sleep_date:
+                sleep_details[sleep_date] = {
+                    "quality_score": data.get("quality_score"),
+                    "efficiency_pct": data.get("efficiency_pct"),
+                    "deep_sleep_min": data.get("deep_sleep_min"),
+                    "rem_min": data.get("rem_min"),
+                    "light_sleep_min": data.get("light_sleep_min"),
+                    "awake_min": data.get("awake_min"),
+                    "latency_min": data.get("latency_min"),
+                    "spo2_avg": data.get("spo2_avg"),
+                }
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    for wh in wellness_history:
+        date_key = wh.get("date")
+        if date_key and date_key in sleep_details:
+            wh.update(sleep_details[date_key])
+
     recent_workouts = []
     for w in r_workouts.scalars().all():
         d = w.start_date.date() if w.start_date and hasattr(w.start_date, "date") else None
+        raw = w.raw or {}
         recent_workouts.append({
             "date": d.isoformat() if d else None,
             "name": w.name,
@@ -580,6 +634,11 @@ async def run_daily_decision(
             "distance_km": round(w.distance_m / 1000, 1) if w.distance_m is not None else None,
             "tss": w.tss,
             "source": w.source,
+            "avg_hr": raw.get("avg_heart_rate"),
+            "max_hr": raw.get("max_heart_rate"),
+            "avg_power": raw.get("avg_power"),
+            "normalized_power": raw.get("normalized_power"),
+            "calories": raw.get("total_calories"),
         })
 
     had_workout_today = any(
