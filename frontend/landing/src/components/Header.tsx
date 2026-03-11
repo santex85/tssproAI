@@ -42,7 +42,7 @@ export function Header({ appUrl }: { appUrl: string }) {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-[#0a0a0a]/95 backdrop-blur-lg border-b border-white/10" : "bg-transparent"
+        isScrolled || isMobileMenuOpen ? "bg-[#0a0a0a]/98 backdrop-blur-lg border-b border-white/10" : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -85,7 +85,7 @@ export function Header({ appUrl }: { appUrl: string }) {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-white/10 pt-4">
+          <div className="md:hidden mt-4 pb-4 pt-4 border-t border-white/10 bg-[#0a0a0a] -mx-6 px-6 rounded-b-xl shadow-xl">
             <nav className="flex flex-col gap-4">
               <button onClick={() => scrollToSection("features")} className="text-left text-white/70 hover:text-white transition">
                 {t("header.features")}
