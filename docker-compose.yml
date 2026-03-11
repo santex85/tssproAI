@@ -170,5 +170,5 @@ networks:
 
 volumes:
   postgres_data:
-    name: tssproai_postgres_data_v2
+    name: smart_trainer_postgres_data_v2
   minio_data:
