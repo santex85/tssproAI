@@ -1,6 +1,8 @@
 """Tests for orchestrator helpers: _normalize_decision, _parse_llm_response, _build_system_prompt, _build_context, _get_response_schema."""
 
 import json
+from datetime import date
+
 import pytest
 
 from app.schemas.orchestrator import Decision
@@ -106,7 +108,7 @@ def test_build_context_includes_current_local_hour():
         None,
         current_local_hour=14,
     )
-    assert "## Current local hour" in ctx
+    assert "## Current date and time" in ctx
     assert "14" in ctx
 
 
@@ -119,8 +121,41 @@ def test_build_context_hour_not_provided():
         None,
         current_local_hour=None,
     )
-    assert "## Current local hour" in ctx
+    assert "## Current date and time" in ctx
     assert "not provided" in ctx
+
+
+def test_build_context_includes_date_and_timezone():
+    """Context includes date, weekday and timezone when provided."""
+    ctx = _build_context(
+        {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0},
+        {},
+        [],
+        None,
+        current_local_hour=10,
+        today_date=date(2026, 3, 11),
+        timezone_name="Europe/Moscow",
+    )
+    assert "2026-03-11" in ctx
+    assert "Wednesday" in ctx
+    assert "Europe/Moscow" in ctx
+
+
+def test_build_context_wellness_history_shows_today_label():
+    """Wellness history marks today's entry with (today) label."""
+    ctx = _build_context(
+        {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0},
+        {},
+        [],
+        None,
+        wellness_history=[
+            {"date": "2026-03-10", "sleep_hours": 7, "hrv": 50, "rhr": 55},
+            {"date": "2026-03-11", "sleep_hours": 8, "hrv": 55, "rhr": 52},
+        ],
+        today_date=date(2026, 3, 11),
+    )
+    assert "2026-03-10:" in ctx
+    assert "2026-03-11 (today):" in ctx
 
 
 # --- _get_response_schema: Gemini protobuf compatibility ---

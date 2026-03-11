@@ -322,12 +322,13 @@ def _format_recent_workouts(workouts: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _format_wellness_history(history: list[dict]) -> str:
+def _format_wellness_history(history: list[dict], today_iso: str | None = None) -> str:
     if not history:
         return "(none)"
     lines = []
     for h in history:
         d = h.get("date") or "?"
+        label = " (today)" if d == today_iso else ""
         sleep = h.get("sleep_hours")
         hrv = h.get("hrv")
         rhr = h.get("rhr")
@@ -338,7 +339,7 @@ def _format_wellness_history(history: list[dict]) -> str:
             parts.append(f"HRV {hrv}")
         if rhr is not None:
             parts.append(f"RHR {rhr}")
-        lines.append(f"- {d}: {', '.join(parts) or '—'}")
+        lines.append(f"- {d}{label}: {', '.join(parts) or '—'}")
     return "\n".join(lines)
 
 
@@ -364,14 +365,24 @@ def _build_context(
     recent_workouts: list[dict] | None = None,
     had_workout_today: bool | None = None,
     current_local_hour: int | None = None,
+    today_date: date | None = None,
+    timezone_name: str | None = None,
 ) -> str:
+    if today_date:
+        weekday = today_date.strftime("%A")
+        date_str = f"{today_date.isoformat()} ({weekday})"
+    else:
+        date_str = "not provided"
     hour_str = str(current_local_hour) if current_local_hour is not None else "not provided"
+    tz_str = timezone_name or "UTC"
     profile_str = ", ".join(f"{k}={v}" for k, v in (athlete_profile or {}).items()) or "(none)"
     wellness_str = ", ".join(f"{k}={v}" for k, v in (wellness_today or {}).items() if v is not None) or "(none)"
     load_str = ", ".join(f"{k}={v}" for k, v in (ctl_atl_tsb or {}).items() if v is not None) or "(none)"
     parts = [
-        "## Current local hour (0-23, athlete's local time)",
-        hour_str,
+        "## Current date and time (athlete's local)",
+        f"Date: {date_str}",
+        f"Hour: {hour_str}",
+        f"Timezone: {tz_str}",
         "## Athlete profile (weight, height, age, FTP, name, sex)",
         profile_str,
         "## Food today (sum)",
@@ -383,7 +394,7 @@ def _build_context(
         "## Load (CTL/ATL/TSB)",
         load_str,
         "## Wellness history (last 7 days)",
-        _format_wellness_history(wellness_history or []),
+        _format_wellness_history(wellness_history or [], today_iso=today_date.isoformat() if today_date else None),
         "## Planned workouts today (Intervals)",
         _format_planned_workouts(events_today),
         "## Recent workouts (manual/FIT, if any)",
@@ -608,6 +619,8 @@ async def run_daily_decision(
         recent_workouts=recent_workouts,
         had_workout_today=had_workout_today,
         current_local_hour=client_local_hour,
+        today_date=today,
+        timezone_name=user_tz,
     )
 
     system_prompt = _build_system_prompt(
