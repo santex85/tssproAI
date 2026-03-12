@@ -702,7 +702,6 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
-  const loadingStageIndex = useLoadingStages(analyzing, 3, 1600);
   const [dateStr, setDateStr] = useState(defaultDate);
   const [name, setName] = useState("");
   const [type, setType] = useState("Run");
@@ -712,6 +711,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const loadingStageIndex = useLoadingStages(analyzing, 3, 1600);
 
   const handleScan = async () => {
     try {

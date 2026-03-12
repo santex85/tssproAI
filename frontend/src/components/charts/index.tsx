@@ -10,9 +10,7 @@ function loadCharts(): Promise<typeof import("react-native-gifted-charts")> {
   if (chartsPromise) return chartsPromise;
   chartsPromise = new Promise((resolve, reject) => {
     requestAnimationFrame(() => {
-      import("react-native-gifted-charts")
-        .then(resolve)
-        .catch(reject);
+      import("react-native-gifted-charts").then(resolve).catch(reject);
     });
   });
   return chartsPromise;
@@ -21,7 +19,9 @@ function loadCharts(): Promise<typeof import("react-native-gifted-charts")> {
 export function LazyLineChart(props: Record<string, unknown>) {
   const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
   useEffect(() => {
-    loadCharts().then((m) => setChart(() => m.LineChart));
+    loadCharts()
+      .then((m) => setChart(() => m.LineChart))
+      .catch(() => {});
   }, []);
   if (!Chart) return null;
   return <Chart {...props} />;
@@ -30,7 +30,9 @@ export function LazyLineChart(props: Record<string, unknown>) {
 export function LazyBarChart(props: Record<string, unknown>) {
   const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
   useEffect(() => {
-    loadCharts().then((m) => setChart(() => m.BarChart));
+    loadCharts()
+      .then((m) => setChart(() => m.BarChart))
+      .catch(() => {});
   }, []);
   if (!Chart) return null;
   return <Chart {...props} />;
@@ -39,7 +41,9 @@ export function LazyBarChart(props: Record<string, unknown>) {
 export function LazyPieChart(props: Record<string, unknown>) {
   const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
   useEffect(() => {
-    loadCharts().then((m) => setChart(() => m.PieChart));
+    loadCharts()
+      .then((m) => setChart(() => m.PieChart))
+      .catch(() => {});
   }, []);
   if (!Chart) return null;
   return <Chart {...props} />;
