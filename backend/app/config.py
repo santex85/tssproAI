@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     gemini_request_timeout_seconds: int = 90
     intervals_icu_base_url: str = "https://intervals.icu/api/v1"
     intervals_sync_timeout_seconds: int = 120
+    # Intervals.icu OAuth (register app at intervals.icu)
+    intervals_client_id: str = ""
+    intervals_client_secret: str = ""
+    intervals_oauth_redirect_uri: str = ""
+    frontend_base_url: str = "http://localhost:8081"
     s3_endpoint_url: str = "http://minio:9000"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"

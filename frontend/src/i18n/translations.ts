@@ -334,6 +334,9 @@ export const ru = {
     unlinkConfirmText: "Отключить Intervals.icu? Восстановление и тренировки больше не будут отображаться.",
     unlink: "Отключить",
     openIntervals: "Открыть intervals.icu",
+    loginWithOAuth: "Войти через Intervals.icu",
+    orManual: "или ввести вручную",
+    oauthNotConfigured: "OAuth Intervals.icu не настроен. Используйте ручной ввод API ключа.",
   },
   fitness: {
     title: "Фитнес (CTL / ATL / TSB)",
@@ -799,6 +802,9 @@ export const en = {
     unlinkConfirmText: "Disconnect Intervals.icu? Recovery and workouts will no longer be displayed.",
     unlink: "Disconnect",
     openIntervals: "Open intervals.icu",
+    loginWithOAuth: "Login with Intervals.icu",
+    orManual: "or enter manually",
+    oauthNotConfigured: "Intervals.icu OAuth is not configured. Use manual API key entry.",
   },
   fitness: {
     title: "Fitness (CTL / ATL / TSB)",

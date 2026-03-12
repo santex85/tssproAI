@@ -321,6 +321,9 @@ export const de = {
     unlinkConfirmText: "Intervals.icu trennen? Erholung und Trainings werden nicht mehr angezeigt.",
     unlink: "Trennen",
     openIntervals: "intervals.icu öffnen",
+    loginWithOAuth: "Mit Intervals.icu anmelden",
+    orManual: "oder manuell eingeben",
+    oauthNotConfigured: "Intervals.icu OAuth ist nicht konfiguriert. Verwenden Sie die manuelle API-Schlüssel-Eingabe.",
   },
   fitness: {
     title: "Fitness (CTL / ATL / TSB)",

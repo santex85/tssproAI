@@ -321,6 +321,9 @@ export const pt = {
     unlinkConfirmText: "Desligar Intervals.icu? A recuperação e os treinos deixarão de ser mostrados.",
     unlink: "Desligar",
     openIntervals: "Abrir intervals.icu",
+    loginWithOAuth: "Entrar com Intervals.icu",
+    orManual: "ou introduzir manualmente",
+    oauthNotConfigured: "OAuth Intervals.icu não configurado. Use a introdução manual da chave API.",
   },
   fitness: {
     title: "Fitness (CTL / ATL / TSB)",

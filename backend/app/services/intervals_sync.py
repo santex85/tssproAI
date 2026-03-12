@@ -140,6 +140,7 @@ async def sync_intervals_to_db(
     api_key: str,
     *,
     client_today: date | None = None,
+    use_bearer: bool = False,
 ) -> tuple[int, int]:
     """
     Fetch activities and wellness from Intervals.icu and upsert into workouts and wellness_cache.
@@ -152,8 +153,8 @@ async def sync_intervals_to_db(
     anchor = max(server_today, client_today) if client_today else server_today
     newest = anchor + timedelta(days=1)  # include "tomorrow" so athlete's "today" in any TZ is fetched
     oldest = newest - timedelta(days=SYNC_DAYS)
-    activities = await get_activities(athlete_id, api_key, oldest, newest, limit=500)
-    wellness_days = await get_wellness(athlete_id, api_key, oldest, newest)
+    activities = await get_activities(athlete_id, api_key, oldest, newest, limit=500, use_bearer=use_bearer)
+    wellness_days = await get_wellness(athlete_id, api_key, oldest, newest, use_bearer=use_bearer)
 
     if not wellness_days:
         logging.warning(
@@ -239,7 +240,7 @@ async def sync_intervals_to_db(
             need_detail[0].get("external_id"),
             need_detail[0].get("start_date"),
         )
-        detail_tasks = [get_activity_single(api_key, row["external_id"]) for row in need_detail]
+        detail_tasks = [get_activity_single(api_key, row["external_id"], use_bearer=use_bearer) for row in need_detail]
         detail_results = await asyncio.gather(*detail_tasks, return_exceptions=True)
         detail_ok = 0
         still_empty = 0

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   ScrollView,
   Linking,
   Platform,
+  AppState,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getIntervalsStatus, linkIntervals, syncIntervals, unlinkIntervals } from "../api/client";
+import { getIntervalsOAuthRedirectUrl, getIntervalsStatus, linkIntervals, syncIntervals, unlinkIntervals } from "../api/client";
+import { IntervalsIcon } from "../components/IntervalsIcon";
 import { useTranslation } from "../i18n";
 
 function getTodayLocal(): string {
@@ -43,6 +45,8 @@ export function IntervalsLinkScreen({ onClose, onSynced }: { onClose: () => void
   const [linkedAthleteId, setLinkedAthleteId] = useState<string | null>(null);
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
   const [unlinkLoading, setUnlinkLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const oauthInProgress = useRef(false);
 
   const loadStatus = useCallback(async () => {
     setStatusLoading(true);
@@ -62,6 +66,44 @@ export function IntervalsLinkScreen({ onClose, onSynced }: { onClose: () => void
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!oauthInProgress.current) return;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        oauthInProgress.current = false;
+        loadStatus();
+      }
+    });
+    return () => sub.remove();
+  }, [loadStatus]);
+
+  const handleOAuthLogin = async () => {
+    setOauthLoading(true);
+    try {
+      const returnApp = Platform.OS !== "web";
+      const { redirect_url } = await getIntervalsOAuthRedirectUrl(returnApp);
+      oauthInProgress.current = true;
+      const opened = await Linking.canOpenURL(redirect_url);
+      if (opened) {
+        await Linking.openURL(redirect_url);
+      } else if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.location.href = redirect_url;
+      } else {
+        Alert.alert(t("common.error"), t("intervals.oauthNotConfigured"));
+      }
+    } catch (e) {
+      oauthInProgress.current = false;
+      const msg = getErrorMessage(e, t);
+      if (msg.includes("not configured") || msg.includes("503")) {
+        Alert.alert(t("common.error"), t("intervals.oauthNotConfigured"));
+      } else {
+        Alert.alert(t("common.error"), msg);
+      }
+    } finally {
+      setOauthLoading(false);
+    }
+  };
 
   const handleLink = async () => {
     const aid = athleteId.trim();
@@ -195,6 +237,25 @@ export function IntervalsLinkScreen({ onClose, onSynced }: { onClose: () => void
         {(showForm || !linked) && (
           <View style={[styles.card, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
             <Text style={styles.cardTitle}>{linked ? t("intervals.titleUpdate") : t("intervals.titleLink")}</Text>
+            <TouchableOpacity
+              style={[styles.oauthButton, oauthLoading && styles.buttonDisabled]}
+              onPress={handleOAuthLogin}
+              disabled={oauthLoading}
+            >
+              {oauthLoading ? (
+                <ActivityIndicator size="small" color="#0f172a" />
+              ) : (
+                <>
+                  <IntervalsIcon size={20} />
+                  <Text style={styles.oauthButtonText}>{t("intervals.loginWithOAuth")}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <View style={styles.orDivider}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>{t("intervals.orManual")}</Text>
+              <View style={styles.orLine} />
+            </View>
             <Text style={styles.label}>{t("intervals.athleteIdLabel")}</Text>
             <TextInput
               style={styles.input}
@@ -273,6 +334,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155",
   },
+  oauthButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#00a8e8",
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  oauthButtonText: { fontSize: 16, color: "#fff", fontWeight: "600" },
+  orDivider: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  orLine: { flex: 1, height: 1, backgroundColor: "#334155" },
+  orText: { marginHorizontal: 12, fontSize: 12, color: "#64748b" },
   buttonPrimary: {
     backgroundColor: "#38bdf8",
     paddingVertical: 14,

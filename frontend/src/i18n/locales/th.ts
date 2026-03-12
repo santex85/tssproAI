@@ -321,6 +321,9 @@ export const th = {
     unlinkConfirmText: "ยกเลิกการเชื่อม Intervals.icu? การฟื้นตัวและการฝึกจะไม่แสดงอีก",
     unlink: "ยกเลิกการเชื่อม",
     openIntervals: "เปิด intervals.icu",
+    loginWithOAuth: "เข้าสู่ระบบด้วย Intervals.icu",
+    orManual: "หรือป้อนด้วยตนเอง",
+    oauthNotConfigured: "OAuth Intervals.icu ยังไม่ได้กำหนดค่า ใช้การป้อนคีย์ API แบบมือ",
   },
   fitness: {
     title: "ฟิตเนส (CTL / ATL / TSB)",

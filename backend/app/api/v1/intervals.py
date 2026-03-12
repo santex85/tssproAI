@@ -4,14 +4,19 @@ import asyncio
 import logging
 from datetime import date, timedelta
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from jose import JWTError
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.config import settings
+from app.core.auth import create_oauth_state_token, decode_oauth_state_token
 from app.db.session import get_db, async_session_maker
 from app.models.intervals_credentials import IntervalsCredentials
 from app.models.user import User
@@ -22,6 +27,8 @@ from app.services.intervals_sync import sync_intervals_to_db
 from app.services.push_notifications import send_push_to_user
 
 router = APIRouter(prefix="/intervals", tags=["intervals"])
+
+INTERVALS_OAUTH_SCOPES = "ACTIVITY:READ,WELLNESS:READ"
 
 
 class LinkIntervalsBody(BaseModel):
@@ -51,6 +58,133 @@ async def get_intervals_status(
     if not creds:
         return {"linked": False}
     return {"linked": True, "athlete_id": creds.athlete_id}
+
+
+@router.get(
+    "/oauth/authorize",
+    summary="Get Intervals.icu OAuth redirect URL",
+    responses={401: {"description": "Not authenticated"}, 503: {"description": "OAuth not configured"}},
+)
+async def intervals_oauth_authorize(
+    user: Annotated[User, Depends(get_current_user)],
+    return_app: bool = False,
+) -> dict:
+    """Return redirect_url for Intervals.icu OAuth. Frontend opens this URL in browser.
+    return_app: when True, callback redirects to smarttrainer:// for mobile deep link."""
+    if not settings.intervals_client_id or not settings.intervals_oauth_redirect_uri:
+        raise HTTPException(
+            status_code=503,
+            detail="Intervals.icu OAuth is not configured. Set INTERVALS_CLIENT_ID and INTERVALS_OAUTH_REDIRECT_URI.",
+        )
+    state = create_oauth_state_token(user.id, return_app=return_app)
+    params = {
+        "client_id": settings.intervals_client_id,
+        "redirect_uri": settings.intervals_oauth_redirect_uri,
+        "scope": INTERVALS_OAUTH_SCOPES,
+        "state": state,
+    }
+    redirect_url = f"https://intervals.icu/oauth/authorize?{urlencode(params)}"
+    return {"redirect_url": redirect_url}
+
+
+@router.get(
+    "/oauth/callback",
+    summary="Intervals.icu OAuth callback",
+    responses={400: {"description": "Invalid code or state"}, 503: {"description": "Intervals.icu unavailable"}},
+)
+async def intervals_oauth_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    """Exchange authorization code for access token and redirect to frontend."""
+    frontend_base = (settings.frontend_base_url or "").rstrip("/")
+    success_url = f"{frontend_base}/?intervals_oauth=success" if frontend_base else "/"
+    error_url = f"{frontend_base}/?intervals_oauth=error" if frontend_base else "/"
+    app_scheme = "smarttrainer://intervals-callback"
+    success_app_url = f"{app_scheme}?success=1"
+    error_app_url = f"{app_scheme}?error=1"
+
+    if error:
+        logging.warning("Intervals OAuth callback error: %s", error)
+        return RedirectResponse(url=error_url, status_code=302)
+
+    if not code or not state:
+        raise HTTPException(status_code=400, detail="Missing code or state")
+
+    try:
+        payload = decode_oauth_state_token(state)
+        user_id = int(payload["sub"])
+        return_app = payload.get("return_app") is True
+    except (JWTError, ValueError, KeyError) as e:
+        logging.warning("Intervals OAuth invalid state: %s", e)
+        return RedirectResponse(url=error_url, status_code=302)
+
+    if return_app:
+        success_url = success_app_url
+        error_url = error_app_url
+
+    if not settings.intervals_client_id or not settings.intervals_client_secret or not settings.intervals_oauth_redirect_uri:
+        logging.error("Intervals OAuth not configured")
+        return RedirectResponse(url=error_url, status_code=302)
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            resp = await client.post(
+                "https://intervals.icu/api/oauth/token",
+                data={
+                    "client_id": settings.intervals_client_id,
+                    "client_secret": settings.intervals_client_secret,
+                    "code": code,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except httpx.RequestError as e:
+            logging.exception("Intervals OAuth token exchange failed: %s", e)
+            return RedirectResponse(url=error_url, status_code=302)
+        except httpx.HTTPStatusError as e:
+            logging.warning("Intervals OAuth token exchange HTTP error: %s %s", e.response.status_code, e.response.text)
+            return RedirectResponse(url=error_url, status_code=302)
+
+    access_token = data.get("access_token")
+    athlete = data.get("athlete") or {}
+    athlete_id = str(athlete.get("id", "")) if athlete else ""
+
+    if not access_token or not athlete_id:
+        logging.warning("Intervals OAuth response missing access_token or athlete.id: %s", data)
+        return RedirectResponse(url=error_url, status_code=302)
+
+    async with async_session_maker() as session:
+        encrypted = encrypt_value(access_token)
+        r = await session.execute(select(IntervalsCredentials).where(IntervalsCredentials.user_id == user_id))
+        existing = r.scalar_one_or_none()
+        if existing:
+            existing.encrypted_token_or_key = encrypted
+            existing.athlete_id = athlete_id
+            existing.auth_type = "oauth"
+        else:
+            session.add(
+                IntervalsCredentials(
+                    user_id=user_id,
+                    encrypted_token_or_key=encrypted,
+                    athlete_id=athlete_id,
+                    auth_type="oauth",
+                )
+            )
+        await log_action(
+            session,
+            user_id=user_id,
+            action="link",
+            resource="intervals",
+            resource_id=athlete_id,
+            details={"method": "oauth"},
+        )
+        await session.commit()
+
+    return RedirectResponse(url=success_url, status_code=302)
 
 
 @router.post(
@@ -88,12 +222,14 @@ async def link_intervals(
     if existing:
         existing.encrypted_token_or_key = encrypted
         existing.athlete_id = body.athlete_id
+        existing.auth_type = "api_key"
     else:
         session.add(
             IntervalsCredentials(
                 user_id=uid,
                 encrypted_token_or_key=encrypted,
                 athlete_id=body.athlete_id,
+                auth_type="api_key",
             )
         )
     await log_action(
@@ -141,10 +277,11 @@ async def intervals_webhook(
         logging.warning("Intervals webhook: decryption failed for user_id=%s", user_id)
         return {"ok": True}
 
+    use_bearer = getattr(creds, "auth_type", "api_key") == "oauth"
     async def run_sync() -> None:
         async with async_session_maker() as session:
             try:
-                await sync_intervals_to_db(session, user_id, athlete_id, api_key)
+                await sync_intervals_to_db(session, user_id, athlete_id, api_key, use_bearer=use_bearer)
                 await session.commit()
                 await send_push_to_user(session, user_id, "Intervals sync", "Sync completed (webhook).")
             except Exception as e:
@@ -217,9 +354,10 @@ async def trigger_sync(
                 status_code=400,
                 detail="client_today must be within yesterday and tomorrow (server UTC).",
             )
+    use_bearer = getattr(creds, "auth_type", "api_key") == "oauth"
     try:
         activities_count, wellness_count = await sync_intervals_to_db(
-            session, uid, creds.athlete_id, api_key, client_today=client_today
+            session, uid, creds.athlete_id, api_key, client_today=client_today, use_bearer=use_bearer
         )
     except httpx.TimeoutException as e:
         logging.exception("Intervals sync failed for user_id=%s: %s", uid, e)
@@ -297,8 +435,9 @@ async def get_events_from_api(
         return []
     to_date = to_date or date.today()
     from_date = from_date or (to_date - timedelta(days=7))
+    use_bearer = getattr(creds, "auth_type", "api_key") == "oauth"
     try:
-        events = await get_events(creds.athlete_id, api_key, from_date, to_date)
+        events = await get_events(creds.athlete_id, api_key, from_date, to_date, use_bearer=use_bearer)
     except Exception as e:
         logging.exception("Intervals.icu get_events failed for user_id=%s: %s", uid, e)
         return []
@@ -337,8 +476,9 @@ async def get_activities_from_api(
         return []
     to_date = to_date or date.today()
     from_date = from_date or (to_date - timedelta(days=14))
+    use_bearer = getattr(creds, "auth_type", "api_key") == "oauth"
     try:
-        activities = await get_activities(creds.athlete_id, api_key, from_date, to_date, limit=100)
+        activities = await get_activities(creds.athlete_id, api_key, from_date, to_date, limit=100, use_bearer=use_bearer)
     except Exception as e:
         logging.exception("Intervals.icu get_activities failed for user_id=%s: %s", uid, e)
         return []
@@ -354,7 +494,7 @@ async def get_activities_from_api(
     detail_by_id: dict[str, dict] = {}
     if need_detail:
         results = await asyncio.gather(
-            *[get_activity_single(api_key, a.id) for a in need_detail],
+            *[get_activity_single(api_key, a.id, use_bearer=use_bearer) for a in need_detail],
             return_exceptions=True,
         )
         for a, res in zip(need_detail, results):

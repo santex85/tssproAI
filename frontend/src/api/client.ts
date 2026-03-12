@@ -744,6 +744,11 @@ export async function getIntervalsStatus(): Promise<{ linked: boolean; athlete_i
   return api<{ linked: boolean; athlete_id?: string }>("/api/v1/intervals/status");
 }
 
+export async function getIntervalsOAuthRedirectUrl(returnApp?: boolean): Promise<{ redirect_url: string }> {
+  const params = returnApp ? "?return_app=1" : "";
+  return api<{ redirect_url: string }>(`/api/v1/intervals/oauth/authorize${params}`);
+}
+
 export async function linkIntervals(athleteId: string, apiKey: string): Promise<{ status: string; athlete_id: string }> {
   return api<{ status: string; athlete_id: string }>("/api/v1/intervals/link", {
     method: "POST",

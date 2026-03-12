@@ -119,6 +119,14 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    if (!isWeb || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("intervals_oauth")) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+    }
+  }, [isWeb]);
+
+  useEffect(() => {
     if (!user) return;
     flushOfflineMutations().catch(() => {});
     registerForPushTokenAsync()

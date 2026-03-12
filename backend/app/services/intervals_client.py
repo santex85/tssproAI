@@ -57,6 +57,13 @@ def _basic_auth(api_key: str) -> tuple[str, str]:
     return ("API_KEY", api_key)
 
 
+def _auth_kwargs(api_key: str, use_bearer: bool = False) -> dict:
+    """Return auth kwargs for httpx: Bearer for OAuth tokens, Basic for API keys."""
+    if use_bearer:
+        return {"headers": {"Authorization": f"Bearer {api_key}"}}
+    return {"auth": _basic_auth(api_key)}
+
+
 def _log_response_error(method: str, url: str, response: httpx.Response) -> None:
     """Log HTTP error without sensitive data."""
     body = (response.text or "")[:500]
@@ -69,10 +76,11 @@ def _log_response_error(method: str, url: str, response: httpx.Response) -> None
     )
 
 
-async def validate_credentials(athlete_id: str, api_key: str) -> bool:
+async def validate_credentials(athlete_id: str, api_key: str, use_bearer: bool = False) -> bool:
     """Validate Intervals.icu credentials by making a minimal API call.
     Returns True if credentials are valid, False if 401/403/4xx/5xx.
     Raises httpx.RequestError on network/timeout errors (caller should map to 503).
+    use_bearer: True for OAuth tokens, False for API keys.
     """
     athlete_id = _normalize_athlete_id(athlete_id)
     client = get_http_client()
@@ -80,7 +88,7 @@ async def validate_credentials(athlete_id: str, api_key: str) -> bool:
     today = date.today()
     params = {"oldest": today.isoformat(), "newest": today.isoformat()}
     timeout = 10
-    r = await client.get(url, params=params, auth=_basic_auth(api_key), timeout=timeout)
+    r = await client.get(url, params=params, timeout=timeout, **_auth_kwargs(api_key, use_bearer))
     if r.status_code == 200:
         return True
     _log_response_error("GET", url, r)
@@ -92,6 +100,7 @@ async def get_wellness(
     api_key: str,
     oldest: date,
     newest: date,
+    use_bearer: bool = False,
 ) -> list[WellnessDay]:
     """GET wellness data for date range. Returns list of WellnessDay."""
     athlete_id = _normalize_athlete_id(athlete_id)
@@ -99,7 +108,7 @@ async def get_wellness(
     url = f"{BASE_URL}/athlete/{athlete_id}/wellness"
     params = {"oldest": oldest.isoformat(), "newest": newest.isoformat()}
     timeout = settings.intervals_sync_timeout_seconds
-    r = await client.get(url, params=params, auth=_basic_auth(api_key), timeout=timeout)
+    r = await client.get(url, params=params, timeout=timeout, **_auth_kwargs(api_key, use_bearer))
     if r.status_code >= 400:
         _log_response_error("GET", url, r)
     r.raise_for_status()
@@ -174,6 +183,7 @@ async def get_activities(
     oldest: date,
     newest: date,
     limit: int = 100,
+    use_bearer: bool = False,
 ) -> list[Activity]:
     """GET completed activities (workouts) in date range."""
     athlete_id = _normalize_athlete_id(athlete_id)
@@ -186,7 +196,7 @@ async def get_activities(
         "fields": "id,name,start_date_local,type,distance,moving_time,icu_training_load",
     }
     timeout = settings.intervals_sync_timeout_seconds
-    r = await client.get(url, params=params, auth=_basic_auth(api_key), timeout=timeout)
+    r = await client.get(url, params=params, timeout=timeout, **_auth_kwargs(api_key, use_bearer))
     if r.status_code >= 400:
         _log_response_error("GET", url, r)
     r.raise_for_status()
@@ -234,11 +244,11 @@ async def get_activities(
     return out
 
 
-async def get_activity_single(api_key: str, activity_id: str) -> dict | None:
+async def get_activity_single(api_key: str, activity_id: str, use_bearer: bool = False) -> dict | None:
     """GET single activity by id for full details (name, distance, moving_time, icu_training_load)."""
     client = get_http_client()
     url = f"{BASE_URL}/activity/{activity_id}"
-    r = await client.get(url, auth=_basic_auth(api_key))
+    r = await client.get(url, **_auth_kwargs(api_key, use_bearer))
     if r.status_code >= 400:
         _log_response_error("GET", url, r)
     r.raise_for_status()
@@ -250,13 +260,14 @@ async def get_events(
     api_key: str,
     oldest: date,
     newest: date,
+    use_bearer: bool = False,
 ) -> list[Event]:
     """GET planned events (workouts) in date range."""
     athlete_id = _normalize_athlete_id(athlete_id)
     client = get_http_client()
     url = f"{BASE_URL}/athlete/{athlete_id}/events"
     params = {"oldest": oldest.isoformat(), "newest": newest.isoformat()}
-    r = await client.get(url, params=params, auth=_basic_auth(api_key))
+    r = await client.get(url, params=params, **_auth_kwargs(api_key, use_bearer))
     if r.status_code >= 400:
         _log_response_error("GET", url, r)
     r.raise_for_status()
@@ -296,6 +307,7 @@ async def create_event(
     athlete_id: str,
     api_key: str,
     payload: EventCreate | dict[str, Any],
+    use_bearer: bool = False,
 ) -> Event:
     """POST new event (planned workout)."""
     athlete_id = _normalize_athlete_id(athlete_id)
@@ -315,7 +327,7 @@ async def create_event(
         body = payload
     client = get_http_client()
     url = f"{BASE_URL}/athlete/{athlete_id}/events"
-    r = await client.post(url, json=body, auth=_basic_auth(api_key))
+    r = await client.post(url, json=body, **_auth_kwargs(api_key, use_bearer))
     r.raise_for_status()
     data = r.json() if r.content else {}
     return Event(
@@ -333,6 +345,7 @@ async def update_event(
     api_key: str,
     event_id: str,
     payload: EventCreate | dict[str, Any],
+    use_bearer: bool = False,
 ) -> Event:
     """PUT update existing event."""
     athlete_id = _normalize_athlete_id(athlete_id)
@@ -352,7 +365,7 @@ async def update_event(
         body = payload
     client = get_http_client()
     url = f"{BASE_URL}/athlete/{athlete_id}/events/{event_id}"
-    r = await client.put(url, json=body, auth=_basic_auth(api_key))
+    r = await client.put(url, json=body, **_auth_kwargs(api_key, use_bearer))
     r.raise_for_status()
     data = r.json() if r.content else {}
     return Event(

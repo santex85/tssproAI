@@ -63,3 +63,21 @@ def _get_jwt_verification_key_and_algorithms() -> tuple[str, list[str]]:
 def decode_token(token: str) -> dict[str, Any]:
     key, algorithms = _get_jwt_verification_key_and_algorithms()
     return jwt.decode(token, key, algorithms=algorithms)
+
+
+def create_oauth_state_token(user_id: int, return_app: bool = False) -> str:
+    """Create short-lived JWT for OAuth state (CSRF protection). Expires in 10 minutes."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=10)
+    payload = {"sub": str(user_id), "exp": expire, "type": "intervals_oauth", "return_app": return_app}
+    key, algorithm = _get_jwt_signing_key_and_algorithm()
+    result = jwt.encode(payload, key, algorithm=algorithm)
+    return result if isinstance(result, str) else result.decode("utf-8")
+
+
+def decode_oauth_state_token(state: str) -> dict[str, Any]:
+    """Decode and verify OAuth state token. Raises JWTError if invalid."""
+    key, algorithms = _get_jwt_verification_key_and_algorithms()
+    payload = jwt.decode(state, key, algorithms=algorithms)
+    if payload.get("type") != "intervals_oauth":
+        raise JWTError("Invalid state token type")
+    return payload

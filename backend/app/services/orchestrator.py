@@ -651,9 +651,10 @@ async def run_daily_decision(
     if creds:
         from app.services.intervals_client import get_events
         api_key = decrypt_value(creds.encrypted_token_or_key)
+        use_bearer = getattr(creds, "auth_type", "api_key") == "oauth"
         if api_key:
             try:
-                evs = await get_events(creds.athlete_id, api_key, today, today)
+                evs = await get_events(creds.athlete_id, api_key, today, today, use_bearer=use_bearer)
                 events_today = [
                     {"id": e.id, "title": e.title, "start_date": e.start_date.isoformat() if e.start_date else None, "type": e.type}
                     for e in evs
@@ -753,6 +754,7 @@ async def run_daily_decision(
                         "description": result.modified_plan.description,
                         "type": result.modified_plan.type,
                     },
+                    use_bearer=use_bearer,
                 )
             except Exception as e:
                 logger.error(
