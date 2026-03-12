@@ -1,6 +1,7 @@
 # Environment and secrets (never commit)
 .env
 .env.*
+deploy.env
 !.env.example
 !.env.production.example
 **/.env

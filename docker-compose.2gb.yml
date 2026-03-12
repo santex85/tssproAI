@@ -1,4 +1,4 @@
-# Override for 2GB RAM servers (e.g. prod 167.71.74.220).
+# Override for 2GB RAM servers (e.g. prod when DEPLOY_TARGET=prod).
 # Use with: docker stack deploy -c docker-compose.yml -c docker-compose.prod.yml -c docker-compose.2gb.yml st2
 # Total memory limits ~1GB to leave headroom for OS and spikes.
 services:

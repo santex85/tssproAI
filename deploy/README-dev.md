@@ -1,12 +1,12 @@
-# Dev server (dev.tsspro.tech, 209.38.17.171)
+# Dev server (dev.tsspro.tech)
 
 Сервер для тестирования. Обычно работаем в ветке **dev**, выкатываем её сюда, проверяем, затем мержим в **main** и деплоим на production. Полный цикл: [docs/WORKFLOW.md](../docs/WORKFLOW.md).
 
 ## DNS
 
-Create A records:
-- **dev.tsspro.tech** → **209.38.17.171** (landing)
-- **dev.app.tsspro.tech** → **209.38.17.171** (app)
+Create A records pointing to dev server IP (from `DEV_DEPLOY_HOST` in deploy.env):
+- **dev.tsspro.tech** → dev server IP (landing)
+- **dev.app.tsspro.tech** → dev server IP (app)
 
 ## Deploy (first time and later)
 

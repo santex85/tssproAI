@@ -4,13 +4,15 @@
 
 | Окружение | Лендинг | Приложение | Сервер | Ветка | Команда |
 |-----------|---------|------------|--------|-------|---------|
-| **Dev** | https://dev.tsspro.tech | https://dev.app.tsspro.tech | 209.38.17.171 | `dev` | `make deploy-dev` |
-| **Production** | https://tsspro.tech | https://app.tsspro.tech | 167.71.74.220 | `main` | `make deploy` |
+| **Dev** | https://dev.tsspro.tech | https://dev.app.tsspro.tech | see deploy.env | `dev` | `make deploy-dev` |
+| **Production** | https://tsspro.tech | https://app.tsspro.tech | see deploy.env | `main` | `make deploy` |
 
 - **Лендинг** (DOMAIN) — маркетинговая страница. CTA ведут на приложение.
 - **Приложение** (APP_DOMAIN) — основное приложение + API + Grafana.
 - **Dev** — тестирование. Dev БД сохраняется; restore из S3 — только вручную.
 - **Production** — боевой сервер. Только код из `main`.
+
+**Deploy config:** Copy `deploy.env.example` to `deploy.env` and set `DEPLOY_HOST`, `DEPLOY_TARGET`, `DEV_DEPLOY_HOST`. `deploy.env` is gitignored.
 
 Путь на обоих серверах: `/root/smart_trainer`. На каждом свой `.env` (DOMAIN, APP_DOMAIN, CORS_ORIGINS, секреты).
 
@@ -22,7 +24,7 @@
 
 На сервере уже есть два приложения: **одно в бэкапе (бэкап оставить)**, **второе — удалить**.
 
-1. Подключиться по SSH: `ssh user@167.71.74.220`.
+1. Подключиться по SSH: `ssh user@<production-server>` (host from `DEPLOY_HOST` in deploy.env).
 2. Скопировать и запустить скрипт анализа (или выполнить команды из него вручную):
    ```bash
    # Если репозиторий уже клонирован:
@@ -49,7 +51,7 @@
 
 - Установить Docker и Docker Compose, git (если ещё нет).
 - Фаервол: открыть 80 (HTTP, для ACME), 443 (HTTPS), 22 (SSH).
-- DNS: A-запись домена должна указывать на 167.71.74.220.
+- DNS: A-запись домена должна указывать на IP production-сервера (из `DEPLOY_HOST` в deploy.env).
 
 ### fail2ban (SSH и HTTP)
 
@@ -183,7 +185,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs backend --t
 - **Prometheus** скрапит `backend:8000/metrics` каждые 15s (конфиг: `deploy/prometheus.yml`).
 - **Grafana** доступна на `http://127.0.0.1:3000` (только с хоста; снаружи не открыта). Пароль админа: переменная `GRAFANA_PASSWORD` в `.env` (по умолчанию `admin`).
 
-**Первый вход в Grafana:** откройте порт через SSH-туннель: `ssh -L 3000:127.0.0.1:3000 user@167.71.74.220`, затем в браузере `http://localhost:3000`. Логин `admin`, пароль из `GRAFANA_PASSWORD`. Добавьте Data source → Prometheus, URL: `http://prometheus:9090`, Save & Test.
+**Первый вход в Grafana:** откройте порт через SSH-туннель: `ssh -L 3000:127.0.0.1:3000 user@<production-server>` (host из `DEPLOY_HOST`), затем в браузере `http://localhost:3000`. Логин `admin`, пароль из `GRAFANA_PASSWORD`. Добавьте Data source → Prometheus, URL: `http://prometheus:9090`, Save & Test.
 
 ## 7. Обновления
 

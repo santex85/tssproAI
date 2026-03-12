@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Bootstrap dev server (209.38.17.171): install Docker, init Swarm, prepare deploy directory.
-# Run on the server once (e.g. via: ssh root@209.38.17.171 'bash -s' < deploy/bootstrap-dev.sh).
+# Bootstrap dev server: install Docker, init Swarm, prepare deploy directory.
+# Run on the server once (e.g. via: ssh root@<dev-host> 'bash -s' < deploy/bootstrap-dev.sh).
+# Dev host is DEV_DEPLOY_HOST from deploy.env.
 # After this: clone repo into DEPLOY_PATH, copy .env.development.example to .env and fill secrets, then run make deploy-dev from your machine.
 
 set -e
@@ -23,7 +24,7 @@ if ! docker compose version &>/dev/null; then
   exit 1
 fi
 
-# Init Swarm if not already (use ADVERTISE_ADDR when host has multiple IPs, e.g. 209.38.17.171)
+# Init Swarm if not already (use ADVERTISE_ADDR when host has multiple IPs)
 if ! docker info 2>/dev/null | grep -q "Swarm: active"; then
   echo "Initializing Docker Swarm..."
   if [ -n "${ADVERTISE_ADDR}" ]; then
@@ -65,4 +66,4 @@ echo "  3. Edit $DEPLOY_PATH/.env and set DOMAIN=dev.tsspro.tech, APP_DOMAIN=dev
 echo "     On low-RAM dev server add: NODE_MEMORY_MB=1536 (or 1024) to reduce frontend build memory and avoid OOM."
 echo "  4. From your machine: make deploy-dev"
 echo ""
-echo "Ensure DNS: dev.tsspro.tech and dev.app.tsspro.tech -> this server's IP (209.38.17.171)."
+echo "Ensure DNS: dev.tsspro.tech and dev.app.tsspro.tech -> this server's IP."

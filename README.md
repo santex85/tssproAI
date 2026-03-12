@@ -28,9 +28,9 @@ Cross-platform AI sports coach: nutrition from plate photos (Gemini), Intervals.
 
 Make targets: `make build`, `make up`, `make down`, `make logs`, `make migrate`, `make shell-backend`, `make ps`, `make logs-backend`, `make logs-frontend`, `make logs-db`.
 
-### Production deploy (167.71.74.220)
+### Production deploy
 
-See [docs/DEPLOY.md](docs/DEPLOY.md): Phase 0 (server analysis and cleanup), then git clone, `.env` from `.env.production.example`, Caddy HTTPS.
+Copy `deploy.env.example` to `deploy.env`, set `DEPLOY_HOST` and `DEPLOY_TARGET=prod`, then run `make deploy`. See [docs/DEPLOY.md](docs/DEPLOY.md): Phase 0 (server analysis and cleanup), then git clone, `.env` from `.env.production.example`, Caddy HTTPS.
 
 ### Backend (local)
 

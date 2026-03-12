@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run on 167.71.74.220 to list Docker apps, backups, and optionally remove one project.
+# Run on production server (host from DEPLOY_HOST) to list Docker apps, backups, and optionally remove one project.
 # Usage: ./analyze-server.sh [remove-project-path]
 #   If remove-project-path is given (e.g. /home/user/old_app), runs docker compose down -v there and optionally rm -rf.
 

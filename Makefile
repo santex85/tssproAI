@@ -1,28 +1,29 @@
 # IP компьютера в Wi‑Fi: авто (en0 на Mac, иначе .wifi_ip или 192.168.1.157). Переопределить: make use-wifi WIFI_IP=192.168.1.200
 WIFI_IP ?= $(shell (ipconfig getifaddr en0 2>/dev/null) || (hostname -I 2>/dev/null | awk '{print $$1}') || (cat .wifi_ip 2>/dev/null) || echo "192.168.1.157")
 
+# Deploy config: copy deploy.env.example to deploy.env and set hosts. deploy.env is gitignored.
+-include deploy.env
+
 # Деплой на сервер: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH. Пример: make deploy DEPLOY_USER=ubuntu
-DEPLOY_HOST ?= 167.71.74.220
 DEPLOY_USER ?= root
 DEPLOY_PATH ?= /root/smart_trainer
 
 # Dev server (dev.tsspro.tech)
-DEV_DEPLOY_HOST ?= 209.38.17.171
 DEV_DEPLOY_USER ?= root
 DEV_DEPLOY_PATH ?= /root/smart_trainer
 REPO_URL ?= $(shell git remote get-url origin 2>/dev/null || true)
 
-# Stack deploy compose files: 2gb override for prod (167.71.74.220), low-resources for dev
-ifeq ($(DEPLOY_HOST),167.71.74.220)
+# Stack deploy compose files: 2gb override for prod, low-resources for dev (by DEPLOY_TARGET)
+ifeq ($(DEPLOY_TARGET),prod)
 STACK_DEPLOY_FILES = -c docker-compose.yml -c docker-compose.prod.yml -c docker-compose.2gb.yml
-else ifeq ($(DEPLOY_HOST),$(DEV_DEPLOY_HOST))
+else ifeq ($(DEPLOY_TARGET),dev)
 STACK_DEPLOY_FILES = -c docker-compose.yml -c docker-compose.prod.yml -c docker-compose.low-resources.yml
 else
 STACK_DEPLOY_FILES = -c docker-compose.yml -c docker-compose.prod.yml
 endif
 
 # For prod (2GB server): use CI images by default (server can't build)
-ifeq ($(DEPLOY_HOST),167.71.74.220)
+ifeq ($(DEPLOY_TARGET),prod)
 USE_CI_IMAGES ?= 1
 CI_REGISTRY_OWNER ?= $(shell git remote get-url origin 2>/dev/null | sed -E 's|.*github.com[:/]([^/]+)/.*|\1|')
 endif
@@ -115,14 +116,16 @@ CI_IMAGE_TAG ?= latest
 # Переопределить: make deploy DEPLOY_HOST=1.2.3.4 DEPLOY_PATH=/home/app/smart_trainer
 deploy:
 	git push origin main
-	$(MAKE) deploy-no-push
+	$(MAKE) deploy-no-push DEPLOY_TARGET=prod
 
 # Только действия на сервере. fetch + reset --hard (локальные правки на сервере сбрасываются).
 # Prod: main; Dev: DEPLOY_BRANCH (текущая ветка).
 # BUILD_SERVICES=backend или frontend — собрать только указанный сервис (ускоряет деплой при изменениях только в одном).
 # USE_CI_IMAGES=1 — pull вместо build (образы из CI, см. .github/workflows/build.yml).
 deploy-no-push:
-	@BRANCH_CMD=''; \
+	@if [ -z '$(DEPLOY_BRANCH)' ] && [ -z '$(DEPLOY_HOST)' ]; then echo "Error: Set DEPLOY_HOST (e.g. in deploy.env). Copy deploy.env.example to deploy.env."; exit 1; fi; \
+	if [ -n '$(DEPLOY_BRANCH)' ] && [ -z '$(DEV_DEPLOY_HOST)' ]; then echo "Error: Set DEV_DEPLOY_HOST (e.g. in deploy.env). Copy deploy.env.example to deploy.env."; exit 1; fi; \
+	BRANCH_CMD=''; \
 	if [ -n '$(DEPLOY_BRANCH)' ]; then \
 		BRANCH_CMD='git fetch origin && git checkout "$(DEPLOY_BRANCH)" && git reset --hard origin/$(DEPLOY_BRANCH)'; \
 	else \
@@ -147,12 +150,12 @@ deploy-frontend-no-push:
 # Prod: пуш main и деплой только backend.
 deploy-backend:
 	git push origin main
-	$(MAKE) deploy-no-push BUILD_SERVICES=backend
+	$(MAKE) deploy-no-push DEPLOY_TARGET=prod BUILD_SERVICES=backend
 
 # Prod: пуш main и деплой только frontend.
 deploy-frontend:
 	git push origin main
-	$(MAKE) deploy-no-push BUILD_SERVICES=frontend
+	$(MAKE) deploy-no-push DEPLOY_TARGET=prod BUILD_SERVICES=frontend
 
 # Однократно: снять стек и удалить overlay-сети, чтобы при следующем deploy они создались с attachable: true (для docker run миграций).
 # После выполнения запустите: make deploy
@@ -182,19 +185,19 @@ ensure-dev-server:
 # Dev БД сохраняется; restore из S3 — только вручную: make restore-dev-from-s3
 deploy-dev: ensure-dev-server
 	git push origin $(shell git branch --show-current)
-	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
+	$(MAKE) deploy-no-push DEPLOY_TARGET=dev DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
 
 # Deploy to dev server without git push (на сервере всё равно будет checkout текущей ветки и pull).
 deploy-dev-no-push: ensure-dev-server
-	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
+	$(MAKE) deploy-no-push DEPLOY_TARGET=dev DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current)
 
 # Dev: деплой только backend. Пример: make deploy-dev-backend-no-push
 deploy-dev-backend-no-push: ensure-dev-server
-	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current) BUILD_SERVICES=backend
+	$(MAKE) deploy-no-push DEPLOY_TARGET=dev DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current) BUILD_SERVICES=backend
 
 # Dev: деплой только frontend.
 deploy-dev-frontend-no-push: ensure-dev-server
-	$(MAKE) deploy-no-push DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current) BUILD_SERVICES=frontend
+	$(MAKE) deploy-no-push DEPLOY_TARGET=dev DEPLOY_HOST=$(DEV_DEPLOY_HOST) DEPLOY_USER=$(DEV_DEPLOY_USER) DEPLOY_PATH=$(DEV_DEPLOY_PATH) DEPLOY_BRANCH=$(shell git branch --show-current) BUILD_SERVICES=frontend
 
 # Add or update NODE_MEMORY_MB=768 in .env on dev server (for 1GB RAM). Run once, then make deploy-dev.
 dev-server-set-node-memory:
