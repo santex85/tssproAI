@@ -59,35 +59,20 @@ if (Platform.OS === "web") {
   LogBox.ignoreLogs(["useNativeDriver"]);
 }
 
-// Lazy-loaded screen wrappers to avoid circular dependency issues
+// Screen wrappers using require() - dynamic import() fails on Expo web with "unknown module"
 function LazyCameraScreen(props: React.ComponentProps<typeof import("./src/screens/CameraScreen").CameraScreen>) {
-  const [Screen, setScreen] = useState<React.ComponentType<typeof props> | null>(null);
-  const { colors } = useTheme();
-  useEffect(() => {
-    import("./src/screens/CameraScreen").then((m) => setScreen(() => m.CameraScreen));
-  }, []);
-  if (!Screen) return <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  return <Screen {...props} />;
+  const { CameraScreen } = require("./src/screens/CameraScreen");
+  return <CameraScreen {...props} />;
 }
 
 function LazyPricingScreen(props: { onClose: () => void }) {
-  const [Screen, setScreen] = useState<React.ComponentType<typeof props> | null>(null);
-  const { colors } = useTheme();
-  useEffect(() => {
-    import("./src/screens/PricingScreen").then((m) => setScreen(() => m.PricingScreen));
-  }, []);
-  if (!Screen) return <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  return <Screen {...props} />;
+  const { PricingScreen } = require("./src/screens/PricingScreen");
+  return <PricingScreen {...props} />;
 }
 
 function LazyBillingScreen(props: { onClose: () => void; onOpenPricing: () => void }) {
-  const [Screen, setScreen] = useState<React.ComponentType<typeof props> | null>(null);
-  const { colors } = useTheme();
-  useEffect(() => {
-    import("./src/screens/BillingScreen").then((m) => setScreen(() => m.BillingScreen));
-  }, []);
-  if (!Screen) return <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  return <Screen {...props} />;
+  const { BillingScreen } = require("./src/screens/BillingScreen");
+  return <BillingScreen {...props} />;
 }
 
 function AppContent() {
