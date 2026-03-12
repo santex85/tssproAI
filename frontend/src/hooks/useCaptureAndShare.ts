@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { Platform } from "react-native";
-import { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import { SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT } from "../components/InsightShareCard";
 import type { RefObject } from "react";
@@ -16,6 +15,7 @@ export function useCaptureAndShare(cardRef: RefObject<View | null>): {
     if (!cardRef.current) return;
     setIsSharing(true);
     try {
+      const { captureRef } = require("react-native-view-shot");
       await new Promise((r) => setTimeout(r, 150));
       if (Platform.OS === "web") {
         const dataUri = await captureRef(cardRef.current, {

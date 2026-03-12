@@ -20,7 +20,6 @@ import * as Sentry from "@sentry/react-native";
 import * as Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { Swipeable } from "react-native-gesture-handler";
 import {
   getNutritionDay,
   createNutritionEntry,
@@ -55,7 +54,6 @@ import {
   type SleepExtractionResponse,
 } from "../api/client";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useTheme, contentWrap } from "../theme";
 import { useTranslation, type Locale } from "../i18n";
 import { useLoadingStages } from "../hooks/useLoadingStages";
@@ -63,6 +61,16 @@ import { PremiumGateModal } from "../components/PremiumGateModal";
 import { WorkoutChart } from "../components/WorkoutChart";
 import { LifestyleView, type SleepHistoryEntry } from "../components/dashboard/LifestyleView";
 import { PerformanceView } from "../components/dashboard/PerformanceView";
+
+function Swipeable(props: { children: React.ReactNode; renderRightActions?: () => React.ReactNode }) {
+  const Component = require("react-native-gesture-handler").Swipeable;
+  return <Component {...props} />;
+}
+
+function LinearGradient(props: { colors: string[]; style?: unknown; children?: React.ReactNode }) {
+  const Component = require("expo-linear-gradient").LinearGradient;
+  return <Component {...props} />;
+}
 
 const CALORIE_GOAL = 2200;
 const CARBS_GOAL = 250;

@@ -12,9 +12,13 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar } from "react-native-calendars";
 import { getWellness, createOrUpdateWellness, deleteWellness, type WellnessDay } from "../api/client";
 import { useTranslation } from "../i18n";
+
+function Calendar(props: Record<string, unknown>) {
+  const Component = require("react-native-calendars").Calendar;
+  return <Component {...props} />;
+}
 
 function getTodayLocal(): string {
   const d = new Date();
