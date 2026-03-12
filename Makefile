@@ -95,6 +95,11 @@ up-prod:
 migrate-prod:
 	$(COMPOSE_PROD) exec -T backend alembic upgrade head
 
+# Выдать права суперпользователя на prod. EMAIL обязателен. Пример: make create-superuser EMAIL=santex85@gmail.com
+create-superuser:
+	@if [ -z "$(EMAIL)" ]; then echo "Usage: make create-superuser EMAIL=user@example.com"; exit 1; fi
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && set -a && . ./.env && set +a && export DATABASE_URL=\"postgresql+asyncpg://\$${POSTGRES_USER:-tssproai}:\$${POSTGRES_PASSWORD}@st2_postgres:5432/\$${POSTGRES_DB:-tssproai}\" && docker run --rm --network st2_backend-db -v $(DEPLOY_PATH)/backend/scripts:/app/scripts:ro -e DATABASE_URL=\"\$$DATABASE_URL\" st2-backend:latest python scripts/create_superuser.py $(EMAIL)"
+
 # Для dev-сервера: какую ветку катить (текущая). Для prod не задаём — на сервере остаётся main.
 DEPLOY_BRANCH ?=
 

@@ -10,6 +10,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY app/ ./app/
 COPY alembic/ ./alembic/
+COPY scripts/ ./scripts/
 COPY alembic.ini .
 
 EXPOSE 8000
