@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { LazyLineChart } from "./charts";
 
 /** Props passed through to LineChart from react-native-gifted-charts */
 interface WorkoutChartProps {
@@ -22,10 +23,5 @@ interface WorkoutChartProps {
  * when DashboardScreen loads (module init order / circular deps).
  */
 export function WorkoutChart(props: WorkoutChartProps) {
-  const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
-  useEffect(() => {
-    import("react-native-gifted-charts").then((m) => setChart(() => m.LineChart));
-  }, []);
-  if (!Chart) return null;
-  return <Chart {...props} />;
+  return <LazyLineChart {...props} />;
 }

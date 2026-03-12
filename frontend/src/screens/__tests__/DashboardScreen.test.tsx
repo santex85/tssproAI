@@ -5,7 +5,12 @@ import { DashboardScreen } from "../DashboardScreen";
 import { ThemeProvider } from "../../theme";
 import { I18nProvider } from "../../i18n";
 
-jest.mock("react-native-gifted-charts", () => ({ LineChart: () => null }));
+jest.mock("react-native-gifted-charts", () => ({ LineChart: () => null, BarChart: () => null, PieChart: () => null }));
+jest.mock("../../components/charts", () => ({
+  LazyLineChart: () => null,
+  LazyBarChart: () => null,
+  LazyPieChart: () => null,
+}));
 
 jest.mock("../../api/client", () => ({
   getNutritionDay: jest.fn().mockResolvedValue({

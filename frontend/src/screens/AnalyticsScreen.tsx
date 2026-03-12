@@ -14,31 +14,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-// Defer gifted-charts load to avoid TDZ "Cannot access 'M' before initialization"
-function LineChart(props: Record<string, unknown>) {
-  const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
-  useEffect(() => {
-    import("react-native-gifted-charts").then((m) => setChart(() => m.LineChart));
-  }, []);
-  if (!Chart) return null;
-  return <Chart {...props} />;
-}
-function BarChart(props: Record<string, unknown>) {
-  const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
-  useEffect(() => {
-    import("react-native-gifted-charts").then((m) => setChart(() => m.BarChart));
-  }, []);
-  if (!Chart) return null;
-  return <Chart {...props} />;
-}
-function PieChart(props: Record<string, unknown>) {
-  const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
-  useEffect(() => {
-    import("react-native-gifted-charts").then((m) => setChart(() => m.PieChart));
-  }, []);
-  if (!Chart) return null;
-  return <Chart {...props} />;
-}
+import { LazyLineChart, LazyBarChart, LazyPieChart } from "../components/charts";
 import {
   getAnalyticsOverview,
   getAnalyticsSleep,
@@ -628,7 +604,7 @@ function SleepSection({
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("wellness.sleep")} ({t("analytics.hoursShort")})</Text>
       <View style={[styles.chartWrap, { height: CHART_HEIGHT }]}>
-        <LineChart
+        <LazyLineChart
           data={lineData}
           width={Math.max(screenWidth - 48, lineData.length * 24)}
           height={CHART_HEIGHT - 24}
@@ -682,7 +658,7 @@ function TrainingSection({
         <>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>TSS по дням</Text>
           <View style={[styles.chartWrap, { height: CHART_HEIGHT }]}>
-            <BarChart
+            <LazyBarChart
               data={barData}
               width={Math.max(screenWidth - 48, barData.length * 20)}
               height={CHART_HEIGHT - 24}
@@ -703,7 +679,7 @@ function TrainingSection({
             {t("analytics.loadCtl")} / {t("analytics.loadAtl")}
           </Text>
           <View style={[styles.chartWrap, { height: CHART_HEIGHT }]}>
-            <LineChart
+            <LazyLineChart
               data={loadCtl}
               width={Math.max(screenWidth - 48, loadCtl.length * 24)}
               height={CHART_HEIGHT - 24}
@@ -779,7 +755,7 @@ function NutritionSection({
         {t("nutrition.caloriesLabel")} по дням
       </Text>
       <View style={[styles.chartWrap, { height: CHART_HEIGHT }]}>
-        <BarChart
+        <LazyBarChart
           data={barData}
           width={Math.max(screenWidth - 48, barData.length * 20)}
           height={CHART_HEIGHT - 24}
@@ -801,7 +777,7 @@ function NutritionSection({
             {t("analytics.forPeriod")} {formatPeriodRange(data.from_date, data.to_date)}
           </Text>
           <View style={[styles.chartWrap, { height: 160 }]}>
-            <PieChart
+            <LazyPieChart
               data={pieData}
               donut
               radius={60}

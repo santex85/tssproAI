@@ -9,16 +9,8 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
-// Defer gifted-charts load to avoid TDZ "Cannot access 'M' before initialization"
-function LineChart(props: Record<string, unknown>) {
-  const [Chart, setChart] = useState<React.ComponentType<any> | null>(null);
-  useEffect(() => {
-    import("react-native-gifted-charts").then((m) => setChart(() => m.LineChart));
-  }, []);
-  if (!Chart) return null;
-  return <Chart {...props} />;
-}
 import { Ionicons } from "@expo/vector-icons";
+import { LazyLineChart } from "../charts";
 import {
   getAnalyticsWorkouts,
   type WorkoutFitness,
@@ -176,7 +168,7 @@ export function PerformanceView({
                   <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
                 ) : ctlData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
-                    <LineChart
+                    <LazyLineChart
                       data={ctlData}
                       width={chartWidth}
                       height={SPARKLINE_HEIGHT - 8}
@@ -209,7 +201,7 @@ export function PerformanceView({
                   <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
                 ) : atlData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
-                    <LineChart
+                    <LazyLineChart
                       data={atlData}
                       width={chartWidth}
                       height={SPARKLINE_HEIGHT - 8}
@@ -242,7 +234,7 @@ export function PerformanceView({
                   <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
                 ) : tsbData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
-                    <LineChart
+                    <LazyLineChart
                       data={tsbData}
                       width={chartWidth}
                       height={SPARKLINE_HEIGHT - 8}
