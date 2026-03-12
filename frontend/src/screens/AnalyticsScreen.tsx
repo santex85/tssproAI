@@ -14,7 +14,19 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LineChart, BarChart, PieChart } from "react-native-gifted-charts";
+// Defer gifted-charts load to avoid TDZ "Cannot access 'M' before initialization"
+function LineChart(props: Record<string, unknown>) {
+  const Chart = require("react-native-gifted-charts").LineChart;
+  return <Chart {...props} />;
+}
+function BarChart(props: Record<string, unknown>) {
+  const Chart = require("react-native-gifted-charts").BarChart;
+  return <Chart {...props} />;
+}
+function PieChart(props: Record<string, unknown>) {
+  const Chart = require("react-native-gifted-charts").PieChart;
+  return <Chart {...props} />;
+}
 import {
   getAnalyticsOverview,
   getAnalyticsSleep,

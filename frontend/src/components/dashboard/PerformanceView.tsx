@@ -9,7 +9,11 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
-import { LineChart } from "react-native-gifted-charts";
+// Defer gifted-charts load to avoid TDZ "Cannot access 'M' before initialization"
+function LineChart(props: Record<string, unknown>) {
+  const Chart = require("react-native-gifted-charts").LineChart;
+  return <Chart {...props} />;
+}
 import { Ionicons } from "@expo/vector-icons";
 import {
   getAnalyticsWorkouts,
