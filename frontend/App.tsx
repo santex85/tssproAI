@@ -49,6 +49,9 @@ import { IntervalsLinkScreen } from "./src/screens/IntervalsLinkScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
 import { AnalyticsScreen } from "./src/screens/AnalyticsScreen";
 import { AthleteProfileScreen } from "./src/screens/AthleteProfileScreen";
+import { PwaInstallBanner } from "./src/components/PwaInstallBanner";
+import { OnboardingGuideModal } from "./src/components/OnboardingGuideModal";
+import { useOnboardingGuide } from "./src/hooks/useOnboardingGuide";
 import { Ionicons } from "@expo/vector-icons";
 import * as Font from "expo-font";
 
@@ -99,6 +102,7 @@ function AppContent() {
   const [lastSavedWellness, setLastSavedWellness] = useState<{ date: string } & WellnessPhotoResult | null>(null);
   const [intervalsPendingKey, setIntervalsPendingKey] = useState<string | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
+  const onboardingGuide = useOnboardingGuide();
 
   useEffect(() => {
     setOnUnauthorized(() => {
@@ -219,6 +223,7 @@ function AppContent() {
         <SafeAreaProvider>
           <StatusBar style={mode === "dark" ? "light" : "dark"} />
           <View style={[styles.root, { backgroundColor: colors.background }]}>
+            {isWeb && <PwaInstallBanner />}
             <IntervalsCompleteScreen
               pendingKey={intervalsPendingKey}
               onSuccess={(u) => {
@@ -236,6 +241,7 @@ function AppContent() {
         <SafeAreaProvider>
           <StatusBar style={mode === "dark" ? "light" : "dark"} />
           <View style={[styles.root, { backgroundColor: colors.background }]}>
+            {isWeb && <PwaInstallBanner />}
             <ResetPasswordScreen
               token={resetPasswordToken}
               onSuccess={(u) => {
@@ -249,19 +255,20 @@ function AppContent() {
       );
     }
     return (
-      <SafeAreaProvider>
-        <StatusBar style={mode === "dark" ? "light" : "dark"} />
-        <View style={[styles.root, { backgroundColor: colors.background }]}>
-          <NavigationContainer>
-            <Stack.Navigator
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-                animation: "fade_from_bottom",
-                animationDuration: 200,
-              }}
-            >
-              <Stack.Screen name="Login">
+        <SafeAreaProvider>
+          <StatusBar style={mode === "dark" ? "light" : "dark"} />
+          <View style={[styles.root, { backgroundColor: colors.background }]}>
+            {isWeb && <PwaInstallBanner />}
+            <NavigationContainer>
+              <Stack.Navigator
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background },
+                  animation: "fade_from_bottom",
+                  animationDuration: 200,
+                }}
+              >
+                <Stack.Screen name="Login">
                 {({ navigation }) => (
                   <LoginScreen
                     onSuccess={setUser}
@@ -269,26 +276,26 @@ function AppContent() {
                     onGoToForgotPassword={() => navigation.navigate("ForgotPassword")}
                   />
                 )}
-              </Stack.Screen>
-              <Stack.Screen name="Register">
+                </Stack.Screen>
+                <Stack.Screen name="Register">
                 {({ navigation }) => (
                   <RegisterScreen
                     onSuccess={setUser}
                     onGoToLogin={() => navigation.goBack()}
                   />
                 )}
-              </Stack.Screen>
-              <Stack.Screen name="ForgotPassword">
+                </Stack.Screen>
+                <Stack.Screen name="ForgotPassword">
                 {({ navigation }) => (
                   <ForgotPasswordScreen
                     onGoToLogin={() => navigation.goBack()}
                   />
                 )}
-              </Stack.Screen>
-            </Stack.Navigator>
-          </NavigationContainer>
-        </View>
-      </SafeAreaProvider>
+                </Stack.Screen>
+              </Stack.Navigator>
+            </NavigationContainer>
+          </View>
+        </SafeAreaProvider>
     );
   }
 
@@ -296,6 +303,7 @@ function AppContent() {
     <SafeAreaProvider>
       <StatusBar style={mode === "dark" ? "light" : "dark"} />
       <View style={[styles.root, { backgroundColor: colors.background }]}>
+        {isWeb && <PwaInstallBanner />}
         <NavigationContainer ref={navigationRef}>
           <Tab.Navigator
             screenOptions={({ route }) => {
@@ -356,6 +364,7 @@ function AppContent() {
                   onOpenAthleteProfile={() => navigation.navigate("Profile")}
                   onOpenIntervals={() => setIntervalsVisible(true)}
                   onOpenPricing={() => setPricingVisible(true)}
+                  onShowOnboardingGuide={onboardingGuide.showAgain}
                   onSyncIntervals={async (clientToday?: string) => {
                     const result = await syncIntervals(clientToday);
                     setRefreshWellnessTrigger((t) => t + 1);
@@ -456,6 +465,15 @@ function AppContent() {
               }}
             />
           </View>
+        )}
+
+        {user && onboardingGuide.visible && (
+          <OnboardingGuideModal
+            visible={onboardingGuide.visible}
+            stepIndex={onboardingGuide.stepIndex}
+            onClose={onboardingGuide.dismiss}
+            onNext={onboardingGuide.goNext}
+          />
         )}
 
       </View>

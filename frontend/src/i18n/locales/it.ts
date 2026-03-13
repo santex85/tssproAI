@@ -10,6 +10,8 @@ export const it = {
     brandAlpha: "alpha",
     brandSubtitle: "Nutrizione, sonno e allenamento in un unico posto",
     logout: "Esci",
+    installPwa: "Installa l'app per un accesso rapido",
+    install: "Installa",
   },
   settings: {
     title: "Impostazioni",
@@ -111,8 +113,8 @@ export const it = {
     invalidEmailFormat: "Formato email non valido",
     haveAccount: "Hai già un account? Accedi",
     or: "o",
-    loginWithIntervals: "Accedi con Intervals",
-    registerWithIntervals: "Registrati con Intervals",
+    loginWithIntervals: "Accedi con intervals.icu",
+    registerWithIntervals: "Registrati con intervals.icu",
     intervalsCompleteTitle: "Completa registrazione",
     intervalsCompleteEmailHint: "Inserisci email per completare la registrazione",
     intervalsCompleteExistingHint: "Clicca Completa per accedere al tuo account.",
@@ -130,6 +132,29 @@ export const it = {
     confirmPassword: "Conferma password",
     passwordRequired: "Inserisci password e conferma",
     passwordsMismatch: "Le password non coincidono",
+  },
+  guide: {
+    title: "Come usare l'app",
+    close: "Chiudi",
+    next: "Avanti",
+    done: "Fatto",
+    stepFood: {
+      title: "Nutrizione",
+      body: "Aggiungi cibo: tocca «Aggiungi manualmente» o fotografa il piatto con il pulsante fotocamera in basso. L'IA calcolerà calorie e macro.",
+    },
+    stepSleep: {
+      title: "Sonno",
+      body: "Nel blocco «Sonno e benessere» tocca «Modifica» per inserimento manuale o «Carica screenshot» per foto dallo smartwatch.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, peso",
+      body: "Nello stesso blocco «Modifica» inserisci RHR (battiti a riposo), HRV e peso. I dati sono usati dall'IA per l'analisi.",
+    },
+    stepWorkouts: {
+      title: "Allenamenti",
+      body: "Aggiungi allenamenti: «Aggiungi» per inserimento manuale, «Carica FIT» per file. Nel modulo puoi scansionare una foto. Se hai connesso intervals.icu, gli allenamenti si sincronizzano automaticamente (pulsante Sincronizza nel blocco «Per atleti»).",
+    },
+    showAgain: "Mostra guida",
   },
   nutrition: {
     title: "Nutrizione (resto vs obiettivi)",

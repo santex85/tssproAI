@@ -10,6 +10,8 @@ export const th = {
     brandAlpha: "alpha",
     brandSubtitle: "โภชนาการ การนอน และการฝึกในที่เดียว",
     logout: "ออกจากระบบ",
+    installPwa: "ติดตั้งแอปเพื่อเข้าถึงได้รวดเร็ว",
+    install: "ติดตั้ง",
   },
   settings: {
     title: "การตั้งค่า",
@@ -111,8 +113,8 @@ export const th = {
     invalidEmailFormat: "รูปแบบอีเมลไม่ถูกต้อง",
     haveAccount: "มีบัญชีอยู่แล้ว? เข้าสู่ระบบ",
     or: "หรือ",
-    loginWithIntervals: "เข้าสู่ระบบด้วย Intervals",
-    registerWithIntervals: "สมัครด้วย Intervals",
+    loginWithIntervals: "เข้าสู่ระบบด้วย intervals.icu",
+    registerWithIntervals: "สมัครด้วย intervals.icu",
     intervalsCompleteTitle: "ดำเนินการสมัครให้เสร็จสิ้น",
     intervalsCompleteEmailHint: "ใส่อีเมลเพื่อดำเนินการสมัครให้เสร็จสิ้น",
     intervalsCompleteExistingHint: "คลิกเสร็จสิ้นเพื่อเข้าสู่ระบบ",
@@ -130,6 +132,29 @@ export const th = {
     confirmPassword: "ยืนยันรหัสผ่าน",
     passwordRequired: "ใส่รหัสผ่านและยืนยัน",
     passwordsMismatch: "รหัสผ่านไม่ตรงกัน",
+  },
+  guide: {
+    title: "วิธีใช้แอป",
+    close: "ปิด",
+    next: "ถัดไป",
+    done: "เสร็จสิ้น",
+    stepFood: {
+      title: "โภชนาการ",
+      body: "เพิ่มอาหาร: แตะ «เพิ่มด้วยตนเอง» หรือถ่ายรูปอาหารด้วยปุ่มกล้องด้านล่าง AI จะคำนวณแคลอรี่และมาโคร",
+    },
+    stepSleep: {
+      title: "การนอน",
+      body: "ในบล็อก «การนอนและสุขภาพ» แตะ «แก้ไข» สำหรับการกรอกด้วยตนเอง หรือ «อัปโหลดภาพหน้าจอ» สำหรับรูปจากนาฬิกาอัจฉริยะ",
+    },
+    stepWellness: {
+      title: "RHR, HRV, น้ำหนัก",
+      body: "ในบล็อก «แก้ไข» เดียวกัน กรอก RHR (อัตราการเต้นหัวใจขณะพัก) HRV และน้ำหนัก ข้อมูลจะถูกใช้โดย AI ในการวิเคราะห์",
+    },
+    stepWorkouts: {
+      title: "การฝึก",
+      body: "เพิ่มการฝึก: «เพิ่ม» สำหรับการกรอกด้วยตนเอง «อัปโหลด FIT» สำหรับไฟล์ ในฟอร์มสามารถสแกนรูปได้ หากเชื่อมต่อ intervals.icu การฝึกจะซิงค์อัตโนมัติ (ปุ่มซิงค์ในบล็อก «สำหรับนักกีฬา»)",
+    },
+    showAgain: "แสดงคู่มือ",
   },
   nutrition: {
     title: "โภชนาการ (คงเหลือเทียบกับเป้า)",

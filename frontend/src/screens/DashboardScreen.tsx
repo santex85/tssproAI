@@ -55,6 +55,7 @@ import {
 } from "../api/client";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, contentWrap } from "../theme";
+import type { ThemeColors } from "../theme";
 import { useTranslation, type Locale } from "../i18n";
 import { useLoadingStages } from "../hooks/useLoadingStages";
 import { PremiumGateModal } from "../components/PremiumGateModal";
@@ -157,38 +158,215 @@ const NutritionProgressBar = React.memo(function NutritionProgressBar({
   goal,
   label,
   color,
+  colors,
 }: {
   current: number;
   goal: number;
   label: string;
   color: string;
+  colors: ThemeColors;
 }) {
   const percent = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+  const barStyles = useMemo(
+    () => ({
+      container: { marginTop: 12 },
+      labelRow: { flexDirection: "row" as const, justifyContent: "space-between" as const, marginBottom: 6, alignItems: "center" as const },
+      label: { fontSize: 13, color: colors.text, fontWeight: "600" as const, flex: 1, minWidth: 0, marginRight: 8 },
+      value: { fontSize: 13, color: colors.text, flexShrink: 0 },
+      track: { height: 10, backgroundColor: colors.glassBorder, borderRadius: 100, overflow: "hidden" as const },
+      fill: { height: "100%" as const, borderRadius: 100 },
+    }),
+    [colors]
+  );
   return (
-    <View style={progressBarStyles.container}>
-      <View style={progressBarStyles.labelRow}>
-        <Text style={progressBarStyles.label} numberOfLines={1} ellipsizeMode="tail">
+    <View style={barStyles.container}>
+      <View style={barStyles.labelRow}>
+        <Text style={barStyles.label} numberOfLines={1} ellipsizeMode="tail">
           {label}
         </Text>
-        <Text style={progressBarStyles.value}>
+        <Text style={barStyles.value}>
           {Math.round(current)} / {Math.round(goal)}
         </Text>
       </View>
-      <View style={progressBarStyles.track}>
-        <View style={[progressBarStyles.fill, { width: `${percent}%`, backgroundColor: color }]} />
+      <View style={barStyles.track}>
+        <View style={[barStyles.fill, { width: `${percent}%`, backgroundColor: color }]} />
       </View>
     </View>
   );
 });
 
-const progressBarStyles = StyleSheet.create({
-  container: { marginTop: 12 },
-  labelRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6, alignItems: "center" },
-  label: { fontSize: 13, color: "#FFFFFF", fontWeight: "600", flex: 1, minWidth: 0, marginRight: 8 },
-  value: { fontSize: 13, color: "#e2e8f0", flexShrink: 0 },
-  track: { height: 10, backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: 100, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 100 },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    scrollView: { flex: 1 },
+    userRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+    userActions: { flexDirection: "row", alignItems: "center", gap: 4 },
+    headerSeparator: { fontSize: 14, color: colors.textMuted },
+    userEmail: { fontSize: 14, color: colors.textSecondary, flex: 1, marginRight: 12 },
+    logoutText: { fontSize: 14, color: colors.primary },
+    content: { padding: 20, paddingBottom: 120 },
+    topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 12 },
+    menuIconBtn: { padding: 8 },
+    menuIcon: { fontSize: 24, color: colors.primary, fontWeight: "700" },
+    brandHeader: { marginBottom: 8 },
+    brandTitle: { fontSize: 18, fontWeight: "700", color: colors.text, marginBottom: 0 },
+    brandAlpha: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+    brandVersion: { fontSize: 9, color: colors.textMuted, marginTop: 1 },
+    brandSubtitle: { fontSize: 13, color: colors.textMuted },
+    title: { fontSize: 24, fontWeight: "700", color: colors.text, marginBottom: 12 },
+    tabBar: { flexDirection: "row", borderBottomWidth: 1, marginBottom: 16 },
+    tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
+    tabActive: { borderBottomWidth: 2 },
+    tabText: { fontSize: 15, fontWeight: "600" },
+    sectionTitle: { fontSize: 20, fontWeight: "700", color: colors.text, marginTop: 8, marginBottom: 12 },
+    menuBackdrop: { flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: "flex-start", alignItems: "flex-end", paddingTop: 50, paddingRight: 16, paddingHorizontal: 20 },
+    menuBox: {
+      minWidth: 260,
+      borderRadius: 24,
+      padding: 24,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    menuHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+    menuHeaderLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+    menuEmail: { fontSize: 12, color: colors.textMuted, flex: 1 },
+    proBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    proBadgeText: { fontSize: 12, fontWeight: "700" },
+    menuCloseBtn: { padding: 4 },
+    menuCloseIcon: { fontSize: 20, color: colors.textMuted, fontWeight: "600" },
+    menuBackBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, marginBottom: 8 },
+    menuItem: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 8 },
+    menuItemIcon: { marginRight: 12 },
+    menuItemText: { fontSize: 16, color: colors.text, flex: 1 },
+    menuItemChevron: { marginLeft: 4 },
+    loader: { marginTop: 40 },
+    skeletonWrap: { gap: 12 },
+    skeletonCard: { backgroundColor: colors.glassBg, borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.glassBorder },
+    skeletonTitle: { width: "60%", height: 14, backgroundColor: colors.skeleton, borderRadius: 4, marginBottom: 12 },
+    skeletonLine: { width: "100%", height: 12, backgroundColor: colors.skeleton, borderRadius: 4, marginBottom: 8 },
+    skeletonLineShort: { width: "80%", height: 12, backgroundColor: colors.skeleton, borderRadius: 4 },
+    cardBase: { marginBottom: 16 },
+    cardTitle: { fontSize: 16, color: colors.textSecondary, marginBottom: 6 },
+    cardTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 0 },
+    nutritionDateRow: {},
+    nutritionAddBtn: { flexShrink: 0 },
+    dateNavWrap: { flexShrink: 1, minWidth: 0, gap: 6 },
+    cardTitleActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+    cardTitleLink: { paddingVertical: 4, paddingLeft: 8 },
+    syncBtn: { backgroundColor: colors.primary, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+    syncBtnDisabled: { opacity: 0.7 },
+    syncBtnText: { fontSize: 14, color: colors.primaryText, fontWeight: "600" },
+    value: { fontSize: 18, color: colors.text, fontWeight: "600" },
+    cardValue: { fontSize: 22, fontWeight: "700", color: colors.text, marginBottom: 8, letterSpacing: 0.5 },
+    placeholder: { fontSize: 16, color: colors.textMuted },
+    hint: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+    disclaimer: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+    hintRemaining: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
+    weeklySleepLine: { fontSize: 14, color: colors.text, marginTop: 8 },
+    sleepHistoryRowText: { fontSize: 14, color: colors.text, marginTop: 0 },
+    sleepHistoryDropdown: { marginTop: 4, marginBottom: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.glassBorder, gap: 2 },
+    sleepHistoryDropdownItem: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8 },
+    sleepHistoryDropdownItemText: { fontSize: 15 },
+    sleepHistoryDropdownItemTextDestructive: { fontSize: 15, color: colors.danger, fontWeight: "600" },
+    calendarLink: { marginBottom: 8, paddingVertical: 4 },
+    intervalsActionsRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    intervalsLinkText: { fontSize: 14, color: colors.primary },
+    outlineButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.glassBorder },
+    outlineButtonText: { fontSize: 14, color: colors.primary, fontWeight: "600" },
+    wellnessMetricsLine: { fontSize: 24, fontWeight: "700", color: colors.text, letterSpacing: 0.5 },
+    sleepReminderBanner: { marginTop: 12, marginBottom: 12, padding: 12, borderRadius: 8, borderWidth: 1 },
+    sleepReminderText: { fontSize: 14, color: colors.textMuted, marginBottom: 10 },
+    sleepReminderButtons: { flexDirection: "row", gap: 10 },
+    sleepReminderBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: colors.skeleton },
+    sleepReminderBtnText: { fontSize: 14, color: colors.primary, fontWeight: "600" },
+    fitnessFooter: { marginTop: 2 },
+    fitnessButtonsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" },
+    fitnessBtnBase: { minHeight: 36, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", flexGrow: 1, flexBasis: 160, maxWidth: 240 },
+    fitnessBtnOutline: { borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: "transparent" },
+    fitnessBtnOutlineText: { fontSize: 14, fontWeight: "700", textAlign: "center" },
+    fitnessBtnPrimary: { backgroundColor: colors.primary },
+    fitnessBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: colors.primaryText, textAlign: "center" },
+    fitnessBtnDisabled: { opacity: 0.7 },
+    fitnessHint: { fontSize: 12, marginTop: 2, marginBottom: 10 },
+    fitnessMetricsBlock: { marginTop: 2 },
+    fitnessMetricsLine: { fontSize: 24, fontWeight: "700", lineHeight: 32, letterSpacing: 0.5 },
+    fitnessCaption: { fontSize: 12, marginTop: 4 },
+    fitnessCaptionMuted: { fontStyle: "italic" },
+    fitnessPlaceholder: { marginTop: 4 },
+    errorHint: { fontSize: 12, color: colors.danger, marginBottom: 4 },
+    dateNavBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, flexShrink: 1, minWidth: 0 },
+    dateNavBtnActive: { backgroundColor: colors.primary },
+    dateNavText: { fontSize: 12, color: colors.textSecondary },
+    dateNavTextActive: { color: colors.primaryText, fontWeight: "600" },
+    mealRow: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.glassBorder },
+    mealLine: { fontSize: 14, color: colors.text, flex: 1 },
+    mealRowIcon: { marginLeft: 0 },
+    deleteAction: { backgroundColor: colors.danger, justifyContent: "center", alignItems: "center", paddingHorizontal: 16, marginTop: 2, borderRadius: 8 },
+    deleteActionText: { color: "#fff", fontWeight: "600" },
+    modalBackdrop: { flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: "center", alignItems: "center", padding: 20 },
+    modalBox: { backgroundColor: colors.glassBg, borderRadius: 24, padding: 20, maxWidth: 400, width: "100%", maxHeight: "85%", borderWidth: 1, borderColor: colors.glassBorder },
+    modalTitle: { fontSize: 18, fontWeight: "600", color: colors.text, marginBottom: 12 },
+    modalScroll: { maxHeight: 320 },
+    modalLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 8, marginBottom: 4 },
+    modalInput: { backgroundColor: colors.inputBg, borderRadius: 8, padding: 12, fontSize: 16, color: colors.text, borderWidth: 1, borderColor: colors.inputBorder, marginBottom: 12 },
+    mealTypeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 12 },
+    mealTypeBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.inputBg },
+    mealTypeBtnActive: { backgroundColor: colors.primary },
+    mealTypeBtnText: { fontSize: 12, color: colors.textMuted },
+    mealTypeBtnTextActive: { fontSize: 12, color: colors.primaryText, fontWeight: "600" },
+    micronutrientsBlock: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: colors.surface, borderRadius: 8 },
+    micronutrientRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+    micronutrientLabel: { fontSize: 12, color: colors.textMuted },
+    micronutrientValue: { fontSize: 12, color: colors.text },
+    modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.surfaceBorder },
+    modalActionsColumn: { flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.surfaceBorder },
+    modalBtnCancel: { paddingVertical: 10, paddingHorizontal: 16 },
+    modalBtnCancelText: { fontSize: 16, color: colors.textSecondary },
+    modalBtnDelete: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: colors.danger },
+    modalBtnDeleteText: { fontSize: 16, color: "#fff", fontWeight: "600" },
+    modalBtnSave: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: colors.primary },
+    modalBtnSaveText: { fontSize: 16, color: colors.primaryText, fontWeight: "600" },
+    modalBtnCopy: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: colors.textMuted },
+    modalBtnCopyText: { fontSize: 16, color: colors.text, fontWeight: "600" },
+    modalBtnDisabled: { opacity: 0.7 },
+    deleteConfirmBox: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.surfaceBorder },
+    deleteConfirmTitle: { fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 4 },
+    languagePickerBackdrop: { flex: 1, backgroundColor: colors.modalBackdrop, justifyContent: "center", alignItems: "center", padding: 20 },
+    languagePickerCard: { borderRadius: 24, padding: 20, maxWidth: 320, width: "100%", borderWidth: 1, backgroundColor: colors.surface, borderColor: colors.glassBorder },
+    languagePickerTitle: { fontSize: 18, fontWeight: "600", color: colors.text, marginBottom: 16 },
+    languagePickerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 12, borderRadius: 8, marginBottom: 4 },
+    languagePickerRowActive: { backgroundColor: colors.primary + "33" },
+    languagePickerLabel: { fontSize: 16, color: colors.text },
+    languagePickerCheck: { fontSize: 16, color: colors.primary, fontWeight: "600" },
+    languagePickerClose: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
+    languagePickerCloseText: { fontSize: 16, color: colors.textMuted },
+    deleteConfirmMessage: { fontSize: 14, color: colors.textMuted, marginBottom: 12 },
+    deleteConfirmActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
+    calendarRow: { flexDirection: "row", alignItems: "center", marginTop: 10, gap: 12 },
+    calendarDate: { fontSize: 12, color: colors.textMuted, minWidth: 72 },
+    calendarTitle: { fontSize: 14, color: colors.text, flex: 1 },
+    activityRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 10, gap: 12 },
+    activityInfo: { flex: 1 },
+    analysisDecision: { fontSize: 14, color: colors.primary, fontWeight: "600", marginBottom: 6 },
+    analysisSuggestions: { marginTop: 8, fontStyle: "italic" },
+    analysisBtn: { marginTop: 12, backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, alignItems: "center", alignSelf: "center", maxWidth: 320 },
+    analysisBtnDisabled: { opacity: 0.7 },
+    analysisBtnText: { fontSize: 16, color: colors.primaryText, fontWeight: "600" },
+    orchestratorTeaserCta: { marginTop: 12 },
+    orchestratorUpgradeBtn: { paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+    orchestratorUpgradeBtnText: { fontSize: 16, fontWeight: "600" },
+    chatLink: { marginTop: 16, paddingVertical: 12 },
+    chatLinkText: { fontSize: 16, color: colors.primary },
+    fabLayer: { position: "absolute", left: 0, right: 0, bottom: 24 },
+    fabRail: { width: "100%", paddingHorizontal: 20, alignItems: "flex-end" },
+    fabRailWeb: { maxWidth: 960, alignSelf: "center" },
+    fabWrapper: { borderRadius: 28, overflow: "hidden", elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8 },
+    fabTouchable: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, paddingHorizontal: 20 },
+    fabLabel: { fontSize: 22 },
+    fabText: { fontSize: 16, color: "#fff", fontWeight: "600" },
+  });
+}
 
 const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
   entry,
@@ -204,6 +382,8 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
   onDeleted: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [name, setName] = useState(entry.name);
   const [portionGrams, setPortionGrams] = useState(String(entry.portion_grams));
   const [calories, setCalories] = useState(String(entry.calories));
@@ -330,7 +510,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               value={name}
               onChangeText={setName}
               placeholder={t("nutrition.dishNamePlaceholder")}
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.portionG")}</Text>
             <TextInput
@@ -339,7 +519,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               onChangeText={setPortionGrams}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.entryCalories")}</Text>
             <TextInput
@@ -348,7 +528,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               onChangeText={setCalories}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.entryProtein")}</Text>
             <TextInput
@@ -357,7 +537,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               onChangeText={setProteinG}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.entryFat")}</Text>
             <TextInput
@@ -366,7 +546,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               onChangeText={setFatG}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.entryCarbs")}</Text>
             <TextInput
@@ -375,7 +555,7 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
               onChangeText={setCarbsG}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.mealType")}</Text>
             <View style={styles.mealTypeRow}>
@@ -412,12 +592,12 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
           {entry.can_reanalyze ? (
             <View style={{ marginTop: 16 }}>
               <TouchableOpacity
-                style={[styles.modalBtnSave, { backgroundColor: "#0ea5e9" }]}
+                style={[styles.modalBtnSave, { backgroundColor: colors.primary }]}
                 onPress={handleReanalyze}
                 disabled={saving || deleting || copying || reanalyzing}
               >
                 {reanalyzing ? (
-                  <ActivityIndicator size="small" color="#0f172a" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.modalBtnSaveText}>{t("nutrition.recalculate")}</Text>
                 )}
@@ -457,14 +637,14 @@ const EditFoodEntryModal = React.memo(function EditFoodEntryModal({
                 onPress={handleCopy}
                 disabled={saving || deleting || copying || reanalyzing}
               >
-                {copying ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnCopyText}>{t("nutrition.copy")}</Text>}
+                {copying ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnCopyText}>{t("nutrition.copy")}</Text>}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtnSave, (saving || deleting || copying || reanalyzing) && styles.modalBtnDisabled]}
                 onPress={handleSave}
                 disabled={saving || deleting || copying || reanalyzing}
               >
-                {saving ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
+                {saving ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
               </TouchableOpacity>
             </View>
           )}
@@ -484,6 +664,8 @@ const AddFoodModal = React.memo(function AddFoodModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [name, setName] = useState("");
   const [portionGrams, setPortionGrams] = useState("");
   const [mealType, setMealType] = useState("other");
@@ -531,7 +713,7 @@ const AddFoodModal = React.memo(function AddFoodModal({
               value={name}
               onChangeText={setName}
               placeholder={t("nutrition.dishNamePlaceholder")}
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
             />
             <Text style={styles.modalLabel}>{t("nutrition.portionG")}</Text>
@@ -541,7 +723,7 @@ const AddFoodModal = React.memo(function AddFoodModal({
               onChangeText={setPortionGrams}
               keyboardType="numeric"
               placeholder="100"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.modalLabel}>{t("nutrition.mealType")}</Text>
             <View style={styles.mealTypeRow}>
@@ -567,7 +749,7 @@ const AddFoodModal = React.memo(function AddFoodModal({
               onPress={handleAdd}
               disabled={adding}
             >
-              {adding ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnSaveText}>{t("common.add")}</Text>}
+              {adding ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnSaveText}>{t("common.add")}</Text>}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -590,6 +772,8 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [sleepHours, setSleepHours] = useState(
     initialWellness?.sleep_hours != null ? String(initialWellness.sleep_hours) : ""
   );
@@ -641,7 +825,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
           <TextInput
             style={styles.modalInput}
             placeholder={t("wellness.sleepPlaceholder")}
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={sleepHours}
             onChangeText={setSleepHours}
             keyboardType="decimal-pad"
@@ -649,7 +833,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
           <TextInput
             style={styles.modalInput}
             placeholder={t("wellness.rhrPlaceholder")}
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={rhr}
             onChangeText={setRhr}
             keyboardType="decimal-pad"
@@ -657,7 +841,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
           <TextInput
             style={styles.modalInput}
             placeholder={t("wellness.hrvPlaceholder")}
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={hrv}
             onChangeText={setHrv}
             keyboardType="decimal-pad"
@@ -665,7 +849,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
           <TextInput
             style={styles.modalInput}
             placeholder={t("wellness.weightPlaceholder")}
-            placeholderTextColor="#64748b"
+            placeholderTextColor={colors.textMuted}
             value={weightKg}
             onChangeText={setWeightKg}
             keyboardType="decimal-pad"
@@ -675,7 +859,7 @@ const EditWellnessModal = React.memo(function EditWellnessModal({
               <Text style={styles.modalBtnCancelText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalBtnSave} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
+              {saving ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -694,6 +878,8 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [dateStr, setDateStr] = useState(defaultDate);
   const [name, setName] = useState("");
   const [type, setType] = useState("Run");
@@ -790,11 +976,11 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <Text style={styles.cardTitle}>{t("dashboard.addWorkoutTitle")}</Text>
             <TouchableOpacity 
-              style={[styles.outlineButton, { borderColor: "#38bdf8" }]} 
+              style={[styles.outlineButton, { borderColor: colors.primary }]} 
               onPress={handleScan}
               disabled={analyzing}
             >
-               {analyzing ? <ActivityIndicator size="small" color="#38bdf8" /> : <Text style={styles.outlineButtonText}>📷 {t("dashboard.scanPhoto")}</Text>}
+               {analyzing ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={styles.outlineButtonText}>📷 {t("dashboard.scanPhoto")}</Text>}
             </TouchableOpacity>
           </View>
           {analyzing ? (
@@ -807,7 +993,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder="2024-01-01"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={dateStr}
               onChangeText={setDateStr}
             />
@@ -815,7 +1001,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder={t("dashboard.placeholderWorkoutName")}
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={setName}
             />
@@ -823,7 +1009,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder={t("dashboard.sportTypePlaceholder")}
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={type}
               onChangeText={setType}
             />
@@ -831,7 +1017,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder="60"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={durationMin}
               onChangeText={setDurationMin}
               keyboardType="numeric"
@@ -840,7 +1026,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder="10.5"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={distanceKm}
               onChangeText={setDistanceKm}
               keyboardType="decimal-pad"
@@ -849,7 +1035,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder="50"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={tss}
               onChangeText={setTss}
               keyboardType="numeric"
@@ -858,7 +1044,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
             <TextInput
               style={styles.modalInput}
               placeholder={t("dashboard.placeholderFeelings")}
-              placeholderTextColor="#64748b"
+              placeholderTextColor={colors.textMuted}
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -872,7 +1058,7 @@ const AddWorkoutModal = React.memo(function AddWorkoutModal({
               <Text style={styles.modalBtnCancelText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalBtnSave} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
+              {saving ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -946,7 +1132,7 @@ const WorkoutPreviewModal = React.memo(function WorkoutPreviewModal({
               <Text style={styles.modalBtnCancelText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalBtnSave} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#0f172a" /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
+              {saving ? <ActivityIndicator size="small" color={colors.primaryText} /> : <Text style={styles.modalBtnSaveText}>{t("common.save")}</Text>}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -994,6 +1180,7 @@ const WorkoutDetailModal = React.memo(function WorkoutDetailModal({
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { width: chartWidth } = useWindowDimensions();
   const [deleting, setDeleting] = useState(false);
   if (!workout) return null;
@@ -1180,6 +1367,7 @@ export function DashboardScreen({
   onOpenIntervals,
   onSyncIntervals,
   onOpenPricing,
+  onShowOnboardingGuide,
   refreshNutritionTrigger = 0,
   refreshSleepTrigger = 0,
   refreshWellnessTrigger = 0,
@@ -1196,6 +1384,7 @@ export function DashboardScreen({
   onOpenIntervals?: () => void;
   onOpenPricing?: () => void;
   onSyncIntervals?: (clientToday?: string) => Promise<{ activities_synced?: number; wellness_days_synced?: number } | void>;
+  onShowOnboardingGuide?: () => void;
   refreshNutritionTrigger?: number;
   refreshSleepTrigger?: number;
   refreshWellnessTrigger?: number;
@@ -1272,6 +1461,7 @@ export function DashboardScreen({
   const [activeTab, setActiveTab] = useState<"today" | "analysis">("today");
   const { t, locale, setLocale } = useTranslation();
   const { colors, toggleTheme } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { width: screenWidth } = useWindowDimensions();
   const useShortDate = screenWidth < 420;
 
@@ -1562,16 +1752,16 @@ export function DashboardScreen({
                   style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setMenuView("settings"); }}
                 >
-                  <Ionicons name="settings-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                  <Ionicons name="settings-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                   <Text style={styles.menuItemText}>{t("settings.title")}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.menuItemChevron} />
                 </Pressable>
                 {onLogout ? (
               <Pressable
                 style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
                 onPress={() => { onLogout(); setMenuVisible(false); }}
               >
-                <Ionicons name="power-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                <Ionicons name="power-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                 <Text style={styles.menuItemText}>{t("app.logout")}</Text>
               </Pressable>
             ) : null}
@@ -1580,27 +1770,27 @@ export function DashboardScreen({
                 style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
                 onPress={() => { onOpenAthleteProfile(); setMenuVisible(false); }}
               >
-                <Ionicons name="person-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                <Ionicons name="person-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                 <Text style={styles.menuItemText}>{t("athleteProfile.title")}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.menuItemChevron} />
               </Pressable>
             ) : null}
             <Pressable
               style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
               onPress={() => { onOpenChat(); setMenuVisible(false); }}
             >
-              <Ionicons name="chatbubble-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+              <Ionicons name="chatbubble-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
               <Text style={styles.menuItemText}>{t("chat.openCoachChat")}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.menuItemChevron} />
             </Pressable>
             {onOpenPricing ? (
               <Pressable
                 style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
                 onPress={() => { onOpenPricing(); setMenuVisible(false); }}
               >
-                <Ionicons name="card-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                <Ionicons name="card-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                 <Text style={styles.menuItemText}>{t("pricing.title")}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={styles.menuItemChevron} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.menuItemChevron} />
               </Pressable>
             ) : null}
               </>
@@ -1612,7 +1802,7 @@ export function DashboardScreen({
                     style={styles.menuBackBtn}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
-                    <Ionicons name="arrow-back" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                    <Ionicons name="arrow-back" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                     <Text style={styles.menuItemText}>{t("settings.back")}</Text>
                   </TouchableOpacity>
                 </View>
@@ -1620,7 +1810,7 @@ export function DashboardScreen({
                   style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); toggleTheme(); }}
                 >
-                  <Ionicons name="color-palette-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                  <Ionicons name="color-palette-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                   <Text style={styles.menuItemText}>{t("settings.theme")}</Text>
                 </Pressable>
                 <Pressable
@@ -1631,12 +1821,26 @@ export function DashboardScreen({
                     setLanguagePickerVisible(true);
                   }}
                 >
-                  <Ionicons name="language-outline" size={22} color="#9ca3af" style={styles.menuItemIcon} />
+                  <Ionicons name="language-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
                   <Text style={styles.menuItemText}>{t("settings.language")}</Text>
-                  <Text style={[styles.menuItemText, { flex: 0, color: "#94a3b8", fontSize: 14 }]}>
+                  <Text style={[styles.menuItemText, { flex: 0, color: colors.textMuted, fontSize: 14 }]}>
                     {t(SETTINGS_LANG_KEYS[locale])}
                   </Text>
                 </Pressable>
+                {onShowOnboardingGuide ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: "rgba(255, 255, 255, 0.05)" }]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      onShowOnboardingGuide();
+                      setMenuVisible(false);
+                    }}
+                  >
+                    <Ionicons name="book-outline" size={22} color={colors.textMuted} style={styles.menuItemIcon} />
+                    <Text style={styles.menuItemText}>{t("guide.showAgain")}</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.menuItemChevron} />
+                  </Pressable>
+                ) : null}
               </>
             )}
           </Pressable>
@@ -1809,24 +2013,28 @@ export function DashboardScreen({
                   goal={calorieGoal}
                   label={t("nutrition.caloriesLabel")}
                   color="#22D3EE"
+                  colors={colors}
                 />
                 <NutritionProgressBar
                   current={nutritionDay.totals.protein_g}
                   goal={proteinGoal}
                   label={t("nutrition.proteinLabel")}
                   color="#4ADE80"
+                  colors={colors}
                 />
                 <NutritionProgressBar
                   current={nutritionDay.totals.fat_g}
                   goal={fatGoal}
                   label={t("nutrition.fatLabel")}
                   color="#FBBF24"
+                  colors={colors}
                 />
                 <NutritionProgressBar
                   current={nutritionDay.totals.carbs_g}
                   goal={carbsGoal}
                   label={t("nutrition.carbsLabel")}
                   color="#A78BFA"
+                  colors={colors}
                 />
                 {nutritionDay.entries.map((entry) => (
                   <Swipeable
@@ -1842,7 +2050,7 @@ export function DashboardScreen({
                       style={styles.mealRow}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="restaurant-outline" size={18} color="#9ca3af" style={styles.mealRowIcon} />
+                      <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} style={styles.mealRowIcon} />
                       <Text style={styles.mealLine}>
                         {entry.name}: {Math.round(entry.calories)} kcal
                       </Text>
@@ -1854,10 +2062,10 @@ export function DashboardScreen({
               <>
                 <Text style={styles.placeholder}>{t("nutrition.placeholder")}</Text>
                 <Text style={styles.hint}>{t("nutrition.goal")}: {calorieGoal} {t("nutrition.kcal")} · {t("nutrition.carbsShort")}: {carbsGoal}{t("nutrition.grams")} · {t("nutrition.proteinShort")}: {proteinGoal}{t("nutrition.grams")} · {t("nutrition.fatShort")}: {fatGoal}{t("nutrition.grams")}</Text>
-                <NutritionProgressBar current={nutritionDay.totals.calories} goal={calorieGoal} label={t("nutrition.caloriesLabel")} color="#22D3EE" />
-                <NutritionProgressBar current={nutritionDay.totals.protein_g} goal={proteinGoal} label={t("nutrition.proteinLabel")} color="#4ADE80" />
-                <NutritionProgressBar current={nutritionDay.totals.fat_g} goal={fatGoal} label={t("nutrition.fatLabel")} color="#FBBF24" />
-                <NutritionProgressBar current={nutritionDay.totals.carbs_g} goal={carbsGoal} label={t("nutrition.carbsLabel")} color="#A78BFA" />
+                <NutritionProgressBar current={nutritionDay.totals.calories} goal={calorieGoal} label={t("nutrition.caloriesLabel")} color="#22D3EE" colors={colors} />
+                <NutritionProgressBar current={nutritionDay.totals.protein_g} goal={proteinGoal} label={t("nutrition.proteinLabel")} color="#4ADE80" colors={colors} />
+                <NutritionProgressBar current={nutritionDay.totals.fat_g} goal={fatGoal} label={t("nutrition.fatLabel")} color="#FBBF24" colors={colors} />
+                <NutritionProgressBar current={nutritionDay.totals.carbs_g} goal={carbsGoal} label={t("nutrition.carbsLabel")} color="#A78BFA" colors={colors} />
               </>
             ) : !nutritionLoadError ? (
               <>
@@ -1965,7 +2173,7 @@ export function DashboardScreen({
                 disabled={analysisLoading}
               >
                 {analysisLoading ? (
-                  <ActivityIndicator size="small" color="#0f172a" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.analysisBtnText}>{t("dashboard.runAnalysis")}</Text>
                 )}
@@ -2015,7 +2223,7 @@ export function DashboardScreen({
                     style={fitUploading ? styles.syncBtnDisabled : undefined}
                   >
                     {fitUploading ? (
-                      <ActivityIndicator size="small" color="#38bdf8" />
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <Text style={styles.intervalsLinkText}>{t("workouts.uploadFit")}</Text>
                     )}
@@ -2166,305 +2374,3 @@ export function DashboardScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#1a1a2e" },
-  scrollView: { flex: 1 },
-  userRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  userActions: { flexDirection: "row", alignItems: "center", gap: 4 },
-  headerSeparator: { fontSize: 14, color: "#64748b" },
-  userEmail: { fontSize: 14, color: "#b8c5d6", flex: 1, marginRight: 12 },
-  logoutText: { fontSize: 14, color: "#38bdf8" },
-  content: { padding: 20, paddingBottom: 120 },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 12 },
-  menuIconBtn: { padding: 8 },
-  menuIcon: { fontSize: 24, color: "#38bdf8", fontWeight: "700" },
-  brandHeader: { marginBottom: 8 },
-  brandTitle: { fontSize: 18, fontWeight: "700", color: "#eee", marginBottom: 0 },
-  brandAlpha: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
-  brandVersion: { fontSize: 9, color: "#64748b", marginTop: 1 },
-  brandSubtitle: { fontSize: 13, color: "#94a3b8" },
-  title: { fontSize: 24, fontWeight: "700", color: "#eee", marginBottom: 12 },
-  tabBar: { flexDirection: "row", borderBottomWidth: 1, marginBottom: 16 },
-  tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
-  tabActive: { borderBottomWidth: 2 },
-  tabText: { fontSize: 15, fontWeight: "600" },
-  sectionTitle: { fontSize: 20, fontWeight: "700", color: "#eee", marginTop: 8, marginBottom: 12 },
-  menuBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-start", alignItems: "flex-end", paddingTop: 50, paddingRight: 16, paddingHorizontal: 20 },
-  menuBox: {
-    minWidth: 260,
-    borderRadius: 24,
-    padding: 24,
-    backgroundColor: "rgba(30, 30, 30, 0.7)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  menuHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  menuHeaderLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  menuEmail: { fontSize: 12, color: "#888888", flex: 1 },
-  proBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  proBadgeText: { fontSize: 12, fontWeight: "700" },
-  menuCloseBtn: { padding: 4 },
-  menuCloseIcon: { fontSize: 20, color: "#94a3b8", fontWeight: "600" },
-  menuBackBtn: { flexDirection: "row", alignItems: "center", paddingVertical: 8, marginBottom: 8 },
-  menuItem: { flexDirection: "row", alignItems: "center", paddingVertical: 8, borderRadius: 8 },
-  menuItemIcon: { marginRight: 12 },
-  menuItemText: { fontSize: 16, color: "#E0E0E0", flex: 1 },
-  menuItemChevron: { marginLeft: 4 },
-  loader: { marginTop: 40 },
-  skeletonWrap: { gap: 12 },
-  skeletonCard: { backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)" },
-  skeletonTitle: { width: "60%", height: 14, backgroundColor: "#334155", borderRadius: 4, marginBottom: 12 },
-  skeletonLine: { width: "100%", height: 12, backgroundColor: "#334155", borderRadius: 4, marginBottom: 8 },
-  skeletonLineShort: { width: "80%", height: 12, backgroundColor: "#334155", borderRadius: 4 },
-  cardBase: { marginBottom: 16 },
-  cardTitle: { fontSize: 16, color: "#b8c5d6", marginBottom: 6 },
-  cardTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 0 },
-  nutritionDateRow: {},
-  nutritionAddBtn: { flexShrink: 0 },
-  dateNavWrap: { flexShrink: 1, minWidth: 0, gap: 6 },
-  cardTitleActions: { flexDirection: "row", alignItems: "center", gap: 12 },
-  cardTitleLink: { paddingVertical: 4, paddingLeft: 8 },
-  syncBtn: {
-    backgroundColor: "#38bdf8",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  syncBtnDisabled: { opacity: 0.7 },
-  syncBtnText: { fontSize: 14, color: "#0f172a", fontWeight: "600" },
-  value: { fontSize: 18, color: "#e2e8f0", fontWeight: "600" },
-  cardValue: { fontSize: 22, fontWeight: "700", color: "#e2e8f0", marginBottom: 8, letterSpacing: 0.5 },
-  placeholder: { fontSize: 16, color: "#94a3b8" },
-  hint: { fontSize: 12, color: "#94a3b8", marginTop: 4 },
-  disclaimer: { fontSize: 11, color: "#64748b", marginTop: 2 },
-  hintRemaining: { fontSize: 12, color: "#94a3b8", marginTop: 8 },
-  weeklySleepLine: { fontSize: 14, color: "#e2e8f0", marginTop: 8 },
-  sleepHistoryRowText: { fontSize: 14, color: "#e2e8f0", marginTop: 0 },
-  sleepHistoryDropdown: {
-    marginTop: 4,
-    marginBottom: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 2,
-  },
-  sleepHistoryDropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  sleepHistoryDropdownItemText: { fontSize: 15 },
-  sleepHistoryDropdownItemTextDestructive: { fontSize: 15, color: "#ef4444", fontWeight: "600" },
-  calendarLink: { marginBottom: 8, paddingVertical: 4 },
-  intervalsActionsRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  intervalsLinkText: { fontSize: 14, color: "#38bdf8" },
-  outlineButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  outlineButtonText: { fontSize: 14, color: "#38bdf8", fontWeight: "600" },
-  wellnessMetricsLine: { fontSize: 24, fontWeight: "700", color: "#e2e8f0", letterSpacing: 0.5 },
-  sleepReminderBanner: {
-    marginTop: 12,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  sleepReminderText: { fontSize: 14, color: "#94a3b8", marginBottom: 10 },
-  sleepReminderButtons: { flexDirection: "row", gap: 10 },
-  sleepReminderBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: "#334155",
-  },
-  sleepReminderBtnText: { fontSize: 14, color: "#38bdf8", fontWeight: "600" },
-  fitnessFooter: { marginTop: 2 },
-  fitnessButtonsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" },
-  fitnessBtnBase: {
-    minHeight: 36,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexGrow: 1,
-    flexBasis: 160,
-    maxWidth: 240,
-  },
-  fitnessBtnOutline: {
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    backgroundColor: "transparent",
-  },
-  fitnessBtnOutlineText: { fontSize: 14, fontWeight: "700", textAlign: "center" },
-  fitnessBtnPrimary: {
-    backgroundColor: "#38bdf8",
-  },
-  fitnessBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: "#0f172a", textAlign: "center" },
-  fitnessBtnDisabled: { opacity: 0.7 },
-  fitnessHint: { fontSize: 12, marginTop: 2, marginBottom: 10 },
-  fitnessMetricsBlock: { marginTop: 2 },
-  fitnessMetricsLine: { fontSize: 24, fontWeight: "700", lineHeight: 32, letterSpacing: 0.5 },
-  fitnessCaption: { fontSize: 12, marginTop: 4 },
-  fitnessCaptionMuted: { fontStyle: "italic" },
-  fitnessPlaceholder: { marginTop: 4 },
-  errorHint: { fontSize: 12, color: "#f87171", marginBottom: 4 },
-  dateNavBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, flexShrink: 1, minWidth: 0 },
-  dateNavBtnActive: { backgroundColor: "#38bdf8" },
-  dateNavText: { fontSize: 12, color: "#b8c5d6" },
-  dateNavTextActive: { color: "#0f172a", fontWeight: "600" },
-  mealRow: { marginTop: 2, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  mealLine: { fontSize: 14, color: "#e2e8f0", flex: 1 },
-  mealRowIcon: { marginLeft: 0 },
-  deleteAction: { backgroundColor: "#dc2626", justifyContent: "center", alignItems: "center", paddingHorizontal: 16, marginTop: 2, borderRadius: 8 },
-  deleteActionText: { color: "#fff", fontWeight: "600" },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalBox: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 24,
-    padding: 20,
-    maxWidth: 400,
-    width: "100%",
-    maxHeight: "85%",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
-  modalTitle: { fontSize: 18, fontWeight: "600", color: "#e2e8f0", marginBottom: 12 },
-  modalScroll: { maxHeight: 320 },
-  modalLabel: { fontSize: 12, color: "#b8c5d6", marginTop: 8, marginBottom: 4 },
-  modalInput: {
-    backgroundColor: "#2a2a40",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: "#e2e8f0",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    marginBottom: 12,
-  },
-  mealTypeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 12 },
-  mealTypeBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: "#1a1a2e" },
-  mealTypeBtnActive: { backgroundColor: "#38bdf8" },
-  mealTypeBtnText: { fontSize: 12, color: "#94a3b8" },
-  mealTypeBtnTextActive: { fontSize: 12, color: "#0f172a", fontWeight: "600" },
-  micronutrientsBlock: { marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "#1e293b", borderRadius: 8 },
-  micronutrientRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
-  micronutrientLabel: { fontSize: 12, color: "#94a3b8" },
-  micronutrientValue: { fontSize: 12, color: "#e2e8f0" },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#334155" },
-  modalActionsColumn: { flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#334155" },
-  modalBtnCancel: { paddingVertical: 10, paddingHorizontal: 16 },
-  modalBtnCancelText: { fontSize: 16, color: "#b8c5d6" },
-  modalBtnDelete: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: "#dc2626" },
-  modalBtnDeleteText: { fontSize: 16, color: "#fff", fontWeight: "600" },
-  modalBtnSave: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: "#38bdf8" },
-  modalBtnSaveText: { fontSize: 16, color: "#0f172a", fontWeight: "600" },
-  modalBtnCopy: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: "#475569" },
-  modalBtnCopyText: { fontSize: 16, color: "#e2e8f0", fontWeight: "600" },
-  modalBtnDisabled: { opacity: 0.7 },
-  deleteConfirmBox: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#334155" },
-  deleteConfirmTitle: { fontSize: 16, fontWeight: "600", color: "#e2e8f0", marginBottom: 4 },
-  languagePickerBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  languagePickerCard: {
-    borderRadius: 24,
-    padding: 20,
-    maxWidth: 320,
-    width: "100%",
-    borderWidth: 1,
-    backgroundColor: "rgba(30, 30, 30, 0.95)",
-    borderColor: "rgba(255, 255, 255, 0.12)",
-  },
-  languagePickerTitle: { fontSize: 18, fontWeight: "600", color: "#e2e8f0", marginBottom: 16 },
-  languagePickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  languagePickerRowActive: { backgroundColor: "rgba(56, 189, 248, 0.2)" },
-  languagePickerLabel: { fontSize: 16, color: "#e2e8f0" },
-  languagePickerCheck: { fontSize: 16, color: "#38bdf8", fontWeight: "600" },
-  languagePickerClose: { marginTop: 12, paddingVertical: 10, alignItems: "center" },
-  languagePickerCloseText: { fontSize: 16, color: "#94a3b8" },
-  deleteConfirmMessage: { fontSize: 14, color: "#94a3b8", marginBottom: 12 },
-  deleteConfirmActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
-  calendarRow: { flexDirection: "row", alignItems: "center", marginTop: 10, gap: 12 },
-  calendarDate: { fontSize: 12, color: "#94a3b8", minWidth: 72 },
-  calendarTitle: { fontSize: 14, color: "#e2e8f0", flex: 1 },
-  activityRow: { flexDirection: "row", alignItems: "flex-start", marginTop: 10, gap: 12 },
-  activityInfo: { flex: 1 },
-  analysisDecision: { fontSize: 14, color: "#38bdf8", fontWeight: "600", marginBottom: 6 },
-  analysisSuggestions: { marginTop: 8, fontStyle: "italic" },
-  analysisBtn: {
-    marginTop: 12,
-    backgroundColor: "#38bdf8",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    alignSelf: "center",
-    maxWidth: 320,
-  },
-  analysisBtnDisabled: { opacity: 0.7 },
-  analysisBtnText: { fontSize: 16, color: "#0f172a", fontWeight: "600" },
-  orchestratorTeaserCta: { marginTop: 12 },
-  orchestratorUpgradeBtn: { paddingVertical: 12, borderRadius: 12, alignItems: "center" },
-  orchestratorUpgradeBtnText: { fontSize: 16, fontWeight: "600" },
-  chatLink: { marginTop: 16, paddingVertical: 12 },
-  chatLinkText: { fontSize: 16, color: "#38bdf8" },
-  fabLayer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 24,
-  },
-  fabRail: {
-    width: "100%",
-    paddingHorizontal: 20,
-    alignItems: "flex-end",
-  },
-  fabRailWeb: {
-    maxWidth: 960,
-    alignSelf: "center",
-  },
-  fabWrapper: {
-    borderRadius: 28,
-    overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-  },
-  fabTouchable: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  fabLabel: { fontSize: 22 },
-  fabText: { fontSize: 16, color: "#fff", fontWeight: "600" },
-});

@@ -18,6 +18,8 @@ export const ru = {
     brandAlpha: "alpha",
     brandSubtitle: "Питание, сон и тренировки в одном месте",
     logout: "Выйти",
+    installPwa: "Установите приложение для быстрого доступа",
+    install: "Установить",
   },
   settings: {
     title: "Настройки",
@@ -120,8 +122,8 @@ export const ru = {
     invalidEmailFormat: "Некорректный формат email",
     haveAccount: "Уже есть аккаунт? Войти",
     or: "или",
-    loginWithIntervals: "Войти через Intervals",
-    registerWithIntervals: "Зарегистрироваться через Intervals",
+    loginWithIntervals: "Войти через intervals.icu",
+    registerWithIntervals: "Зарегистрироваться через intervals.icu",
     intervalsCompleteTitle: "Завершение регистрации",
     intervalsCompleteEmailHint: "Введите email для завершения регистрации",
     intervalsCompleteExistingHint: "Нажмите «Завершить» для входа в аккаунт.",
@@ -139,6 +141,29 @@ export const ru = {
     confirmPassword: "Подтвердите пароль",
     passwordRequired: "Введите пароль и подтверждение",
     passwordsMismatch: "Пароли не совпадают",
+  },
+  guide: {
+    title: "Как пользоваться приложением",
+    close: "Закрыть",
+    next: "Далее",
+    done: "Готово",
+    stepFood: {
+      title: "Питание",
+      body: "Добавляйте еду: нажмите «Добавить вручную» или сфотографируйте блюдо кнопкой камеры внизу экрана. ИИ рассчитает калории и макросы.",
+    },
+    stepSleep: {
+      title: "Сон",
+      body: "В блоке «Сон и здоровье» нажмите «Изменить» для ручного ввода или «Загрузить скриншот» для фото с умных часов.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, вес",
+      body: "В том же блоке «Изменить» введите RHR (пульс в покое), HRV и вес. Данные учитываются ИИ при анализе.",
+    },
+    stepWorkouts: {
+      title: "Тренировки",
+      body: "Добавляйте тренировки: «Добавить» для ручного ввода, «Загрузить FIT» для файла с устройства. В форме добавления можно отсканировать фото. Если вы подключили intervals.icu — тренировки автоматически синхронизируются с ним (кнопка «Синхронизировать» в блоке «Для атлетов»).",
+    },
+    showAgain: "Показать гайд",
   },
   nutrition: {
     title: "Питание (остаток по целям)",
@@ -511,6 +536,8 @@ export const en = {
     brandAlpha: "alpha",
     brandSubtitle: "Nutrition, sleep and training in one place",
     logout: "Log out",
+    installPwa: "Install the app for quick access",
+    install: "Install",
   },
   settings: {
     title: "Settings",
@@ -613,8 +640,8 @@ export const en = {
     invalidEmailFormat: "Invalid email format",
     haveAccount: "Already have an account? Log in",
     or: "or",
-    loginWithIntervals: "Log in with Intervals",
-    registerWithIntervals: "Sign up with Intervals",
+    loginWithIntervals: "Log in with intervals.icu",
+    registerWithIntervals: "Sign up with intervals.icu",
     intervalsCompleteTitle: "Complete registration",
     intervalsCompleteEmailHint: "Enter email to complete registration",
     intervalsCompleteExistingHint: "Click Complete to sign in to your account.",
@@ -632,6 +659,29 @@ export const en = {
     confirmPassword: "Confirm password",
     passwordRequired: "Enter password and confirmation",
     passwordsMismatch: "Passwords do not match",
+  },
+  guide: {
+    title: "How to use the app",
+    close: "Close",
+    next: "Next",
+    done: "Done",
+    stepFood: {
+      title: "Nutrition",
+      body: "Add food: tap «Add manually» or take a photo of your meal with the camera button at the bottom. AI will calculate calories and macros.",
+    },
+    stepSleep: {
+      title: "Sleep",
+      body: "In the «Sleep & wellness» block, tap «Edit» for manual entry or «Upload screenshot» for a photo from your smartwatch.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, weight",
+      body: "In the same «Edit» block, enter RHR (resting heart rate), HRV and weight. Data is used by AI for analysis.",
+    },
+    stepWorkouts: {
+      title: "Workouts",
+      body: "Add workouts: «Add» for manual entry, «Upload FIT» for a device file. In the add form you can scan a photo. If you've connected intervals.icu — workouts sync automatically (Sync button in the «For athletes» block).",
+    },
+    showAgain: "Show guide",
   },
   nutrition: {
     title: "Nutrition (remaining vs goals)",

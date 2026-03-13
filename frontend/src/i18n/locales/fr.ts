@@ -10,6 +10,8 @@ export const fr = {
     brandAlpha: "alpha",
     brandSubtitle: "Nutrition, sommeil et entraînement en un seul endroit",
     logout: "Déconnexion",
+    installPwa: "Installez l'app pour un accès rapide",
+    install: "Installer",
   },
   settings: {
     title: "Paramètres",
@@ -111,8 +113,8 @@ export const fr = {
     invalidEmailFormat: "Format d'e-mail invalide",
     haveAccount: "Déjà un compte ? Connexion",
     or: "ou",
-    loginWithIntervals: "Se connecter avec Intervals",
-    registerWithIntervals: "S'inscrire avec Intervals",
+    loginWithIntervals: "Se connecter avec intervals.icu",
+    registerWithIntervals: "S'inscrire avec intervals.icu",
     intervalsCompleteTitle: "Terminer l'inscription",
     intervalsCompleteEmailHint: "Entrez l'e-mail pour terminer l'inscription",
     intervalsCompleteExistingHint: "Cliquez sur Terminer pour vous connecter.",
@@ -130,6 +132,29 @@ export const fr = {
     confirmPassword: "Confirmer le mot de passe",
     passwordRequired: "Entrez le mot de passe et la confirmation",
     passwordsMismatch: "Les mots de passe ne correspondent pas",
+  },
+  guide: {
+    title: "Comment utiliser l'app",
+    close: "Fermer",
+    next: "Suivant",
+    done: "Terminé",
+    stepFood: {
+      title: "Nutrition",
+      body: "Ajoutez des aliments : touchez «Ajouter manuellement» ou photographiez le plat avec le bouton caméra en bas. L'IA calculera les calories et les macros.",
+    },
+    stepSleep: {
+      title: "Sommeil",
+      body: "Dans le bloc «Sommeil et bien-être», touchez «Modifier» pour une saisie manuelle ou «Télécharger capture» pour une photo de la montre connectée.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, poids",
+      body: "Dans le même bloc «Modifier», entrez le RHR (fréquence cardiaque au repos), le HRV et le poids. Les données sont utilisées par l'IA pour l'analyse.",
+    },
+    stepWorkouts: {
+      title: "Entraînements",
+      body: "Ajoutez des entraînements : «Ajouter» pour saisie manuelle, «Télécharger FIT» pour fichier. Dans le formulaire vous pouvez scanner une photo. Si vous avez connecté intervals.icu, les entraînements se synchronisent automatiquement (bouton Synchroniser dans le bloc «Pour athlètes»).",
+    },
+    showAgain: "Afficher le guide",
   },
   nutrition: {
     title: "Nutrition (reste vs objectifs)",

@@ -10,6 +10,8 @@ export const de = {
     brandAlpha: "alpha",
     brandSubtitle: "Ernährung, Schlaf und Training an einem Ort",
     logout: "Abmelden",
+    installPwa: "App für schnellen Zugriff installieren",
+    install: "Installieren",
   },
   settings: {
     title: "Einstellungen",
@@ -111,8 +113,8 @@ export const de = {
     invalidEmailFormat: "Ungültiges E-Mail-Format",
     haveAccount: "Bereits ein Konto? Anmelden",
     or: "oder",
-    loginWithIntervals: "Mit Intervals anmelden",
-    registerWithIntervals: "Mit Intervals registrieren",
+    loginWithIntervals: "Mit intervals.icu anmelden",
+    registerWithIntervals: "Mit intervals.icu registrieren",
     intervalsCompleteTitle: "Registrierung abschließen",
     intervalsCompleteEmailHint: "E-Mail eingeben, um die Registrierung abzuschließen",
     intervalsCompleteExistingHint: "Klicken Sie auf Abschließen, um sich anzumelden.",
@@ -130,6 +132,29 @@ export const de = {
     confirmPassword: "Passwort bestätigen",
     passwordRequired: "Passwort und Bestätigung eingeben",
     passwordsMismatch: "Passwörter stimmen nicht überein",
+  },
+  guide: {
+    title: "App-Anleitung",
+    close: "Schließen",
+    next: "Weiter",
+    done: "Fertig",
+    stepFood: {
+      title: "Ernährung",
+      body: "Essen hinzufügen: «Manuell hinzufügen» tippen oder Mahlzeit mit der Kamera unten fotografieren. KI berechnet Kalorien und Makros.",
+    },
+    stepSleep: {
+      title: "Schlaf",
+      body: "Im Block «Schlaf & Wohlbefinden» «Bearbeiten» für manuelle Eingabe oder «Screenshot hochladen» für Foto von der Smartwatch tippen.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, Gewicht",
+      body: "Im gleichen «Bearbeiten»-Block RHR (Ruhepuls), HRV und Gewicht eingeben. Daten werden von der KI für Analysen genutzt.",
+    },
+    stepWorkouts: {
+      title: "Training",
+      body: "Training hinzufügen: «Hinzufügen» für manuelle Eingabe, «FIT hochladen» für Gerätedatei. Im Formular kann ein Foto gescannt werden. Bei Verbindung mit intervals.icu werden Trainings automatisch synchronisiert (Synchronisieren im Block «Für Athleten»).",
+    },
+    showAgain: "Anleitung anzeigen",
   },
   nutrition: {
     title: "Ernährung (Rest zu Zielen)",

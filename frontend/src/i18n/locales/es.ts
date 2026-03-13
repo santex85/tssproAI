@@ -10,6 +10,8 @@ export const es = {
     brandAlpha: "alpha",
     brandSubtitle: "Nutrición, sueño y entrenamiento en un solo lugar",
     logout: "Cerrar sesión",
+    installPwa: "Instala la app para acceso rápido",
+    install: "Instalar",
   },
   settings: {
     title: "Ajustes",
@@ -111,8 +113,8 @@ export const es = {
     invalidEmailFormat: "Formato de correo no válido",
     haveAccount: "¿Ya tienes cuenta? Iniciar sesión",
     or: "o",
-    loginWithIntervals: "Iniciar sesión con Intervals",
-    registerWithIntervals: "Registrarse con Intervals",
+    loginWithIntervals: "Iniciar sesión con intervals.icu",
+    registerWithIntervals: "Registrarse con intervals.icu",
     intervalsCompleteTitle: "Completar registro",
     intervalsCompleteEmailHint: "Introduce el email para completar el registro",
     intervalsCompleteExistingHint: "Haz clic en Completar para iniciar sesión.",
@@ -130,6 +132,29 @@ export const es = {
     confirmPassword: "Confirmar contraseña",
     passwordRequired: "Introduce la contraseña y la confirmación",
     passwordsMismatch: "Las contraseñas no coinciden",
+  },
+  guide: {
+    title: "Cómo usar la app",
+    close: "Cerrar",
+    next: "Siguiente",
+    done: "Listo",
+    stepFood: {
+      title: "Nutrición",
+      body: "Añade comida: pulsa «Añadir manualmente» o haz una foto del plato con el botón de cámara abajo. La IA calculará calorías y macros.",
+    },
+    stepSleep: {
+      title: "Sueño",
+      body: "En el bloque «Sueño y bienestar», pulsa «Editar» para entrada manual o «Subir captura» para foto del reloj inteligente.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, peso",
+      body: "En el mismo bloque «Editar» introduce RHR (pulso en reposo), HRV y peso. Los datos se usan en el análisis de la IA.",
+    },
+    stepWorkouts: {
+      title: "Entrenamientos",
+      body: "Añade entrenamientos: «Añadir» para entrada manual, «Subir FIT» para archivo. En el formulario puedes escanear una foto. Si conectaste intervals.icu, los entrenamientos se sincronizan automáticamente (botón Sincronizar en el bloque «Para atletas»).",
+    },
+    showAgain: "Mostrar guía",
   },
   nutrition: {
     title: "Nutrición (resto vs objetivos)",

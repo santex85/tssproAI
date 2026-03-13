@@ -10,6 +10,8 @@ export const pt = {
     brandAlpha: "alpha",
     brandSubtitle: "Nutrição, sono e treino num só lugar",
     logout: "Sair",
+    installPwa: "Instale o app para acesso rápido",
+    install: "Instalar",
   },
   settings: {
     title: "Configurações",
@@ -111,8 +113,8 @@ export const pt = {
     invalidEmailFormat: "Formato de e-mail inválido",
     haveAccount: "Já tem conta? Entrar",
     or: "ou",
-    loginWithIntervals: "Entrar com Intervals",
-    registerWithIntervals: "Registar com Intervals",
+    loginWithIntervals: "Entrar com intervals.icu",
+    registerWithIntervals: "Registar com intervals.icu",
     intervalsCompleteTitle: "Concluir registo",
     intervalsCompleteEmailHint: "Introduza o email para concluir o registo",
     intervalsCompleteExistingHint: "Clique em Concluir para entrar na sua conta.",
@@ -130,6 +132,29 @@ export const pt = {
     confirmPassword: "Confirmar palavra-passe",
     passwordRequired: "Introduza a palavra-passe e a confirmação",
     passwordsMismatch: "As palavras-passe não coincidem",
+  },
+  guide: {
+    title: "Como usar a app",
+    close: "Fechar",
+    next: "Seguinte",
+    done: "Concluído",
+    stepFood: {
+      title: "Nutrição",
+      body: "Adicione comida: toque em «Adicionar manualmente» ou fotografe o prato com o botão da câmara em baixo. A IA calculará calorias e macros.",
+    },
+    stepSleep: {
+      title: "Sono",
+      body: "No bloco «Sono e bem-estar» toque em «Editar» para entrada manual ou «Carregar captura» para foto do relógio inteligente.",
+    },
+    stepWellness: {
+      title: "RHR, HRV, peso",
+      body: "No mesmo bloco «Editar» introduza RHR (pulso em repouso), HRV e peso. Os dados são usados pela IA na análise.",
+    },
+    stepWorkouts: {
+      title: "Treinos",
+      body: "Adicione treinos: «Adicionar» para entrada manual, «Carregar FIT» para ficheiro. No formulário pode digitalizar uma foto. Se conectou intervals.icu, os treinos sincronizam automaticamente (botão Sincronizar no bloco «Para atletas»).",
+    },
+    showAgain: "Mostrar guia",
   },
   nutrition: {
     title: "Nutrição (resto vs objetivos)",
