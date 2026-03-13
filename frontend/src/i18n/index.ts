@@ -1,5 +1,4 @@
 export { I18nProvider, useTranslation } from "./context";
-export { messages, ru, en, de, fr, es, it, pt, th } from "./translations";
 export type { TranslationKey, Locale } from "./translations";
 
 function get(obj: Record<string, unknown>, path: string): string | undefined {
