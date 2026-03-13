@@ -130,7 +130,7 @@ export function PerformanceView({
         <Text style={[styles.cardTitle, { color: colors.text }]}>{t("fitness.title")}</Text>
         <View style={styles.headerActions}>
           {onOpenIntervals ? (
-            <TouchableOpacity onPress={onOpenIntervals} style={styles.intervalsBtn} accessibilityRole="button">
+            <TouchableOpacity onPress={onOpenIntervals} style={[styles.intervalsBtn, { borderColor: colors.glassBorder }]} accessibilityRole="button">
               <Text style={[styles.intervalsBtnText, { color: colors.primary }]}>Intervals.icu</Text>
             </TouchableOpacity>
           ) : null}
@@ -165,7 +165,7 @@ export function PerformanceView({
               <View style={styles.metricValueRow}>
                 <Text style={[styles.metricValue, { color: colors.text }]}>{ctl != null ? ctl.toFixed(1) : "—"}</Text>
                 {loadDataLoading ? (
-                  <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
+                  <View style={[styles.sparklinePlaceholder, { width: chartWidth, backgroundColor: colors.skeleton }]} />
                 ) : ctlData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
                     <LazyLineChart
@@ -198,7 +198,7 @@ export function PerformanceView({
               <View style={styles.metricValueRow}>
                 <Text style={[styles.metricValue, { color: colors.text }]}>{atl != null ? atl.toFixed(1) : "—"}</Text>
                 {loadDataLoading ? (
-                  <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
+                  <View style={[styles.sparklinePlaceholder, { width: chartWidth, backgroundColor: colors.skeleton }]} />
                 ) : atlData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
                     <LazyLineChart
@@ -231,7 +231,7 @@ export function PerformanceView({
               <View style={styles.metricValueRow}>
                 <Text style={[styles.metricValue, { color: colors.text }]}>{tsb != null ? tsb.toFixed(1) : "—"}</Text>
                 {loadDataLoading ? (
-                  <View style={[styles.sparklinePlaceholder, { width: chartWidth }]} />
+                  <View style={[styles.sparklinePlaceholder, { width: chartWidth, backgroundColor: colors.skeleton }]} />
                 ) : tsbData.length > 0 ? (
                   <View style={[styles.sparklineWrap, { width: chartWidth, maxWidth: "100%" }]}>
                     <LazyLineChart
@@ -310,7 +310,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   intervalsBtnText: {
     fontSize: 13,
@@ -368,7 +367,6 @@ const styles = StyleSheet.create({
   },
   sparklinePlaceholder: {
     height: SPARKLINE_HEIGHT - 8,
-    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 4,
   },
   dateCaption: {

@@ -47,9 +47,6 @@ function formatSleepHistoryDate(dateKey: string): string {
 }
 
 const LIFESTYLE_CARD_RADIUS = 16;
-const LIFESTYLE_BG_SOFT = "rgba(203, 213, 225, 0.08)";
-const LIFESTYLE_BG_SOFT_DARK = "rgba(148, 163, 184, 0.06)";
-const LIFESTYLE_BORDER_SOFT = "rgba(148, 163, 184, 0.15)";
 
 export function LifestyleView({
   effectiveWellnessToday,
@@ -89,10 +86,6 @@ export function LifestyleView({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [webMenuEntry, setWebMenuEntry] = useState<SleepHistoryEntry | null>(null);
-
-  const isDark = colors.background === "#0D0D0D" || colors.background === "#1a1a2e";
-  const cardBg = isDark ? LIFESTYLE_BG_SOFT_DARK : LIFESTYLE_BG_SOFT;
-  const cardBorder = LIFESTYLE_BORDER_SOFT;
 
   const showRhrInfo = () => {
     const msg = t("wellness.rhrTooltip");
@@ -204,7 +197,7 @@ export function LifestyleView({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder, borderRadius: LIFESTYLE_CARD_RADIUS }]}>
+    <View style={[styles.card, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder, borderRadius: LIFESTYLE_CARD_RADIUS }]}>
       <View style={styles.cardHeader}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>{t("wellness.title")}</Text>
         <TouchableOpacity
@@ -212,7 +205,7 @@ export function LifestyleView({
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             onEditPress();
           }}
-          style={styles.editBtn}
+          style={[styles.editBtn, { borderColor: colors.glassBorder }]}
         >
           <Text style={[styles.editBtnText, { color: colors.primary }]}>{t("wellness.edit")}</Text>
         </TouchableOpacity>
@@ -222,12 +215,12 @@ export function LifestyleView({
         <View style={[styles.sleepReminder, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
           <Text style={[styles.sleepReminderText, { color: colors.textMuted }]}>{t("wellness.sleepReminder")}</Text>
           <View style={styles.sleepReminderButtons}>
-            <TouchableOpacity style={styles.sleepReminderBtn} onPress={onEditPress}>
+            <TouchableOpacity style={[styles.sleepReminderBtn, { backgroundColor: colors.inputBg }]} onPress={onEditPress}>
               <Text style={[styles.sleepReminderBtnText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
                 {t("wellness.enterManually")}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sleepReminderBtn} onPress={onOpenCamera}>
+            <TouchableOpacity style={[styles.sleepReminderBtn, { backgroundColor: colors.inputBg }]} onPress={onOpenCamera}>
               <Text style={[styles.sleepReminderBtnText, { color: colors.primary }]} numberOfLines={1} ellipsizeMode="tail">
                 {t("wellness.uploadScreenshot")}
               </Text>
@@ -301,7 +294,7 @@ export function LifestyleView({
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             onOpenCamera();
           }}
-          style={styles.addByPhotoBtn}
+          style={[styles.addByPhotoBtn, { borderColor: colors.glassBorder }]}
         >
           <Text style={[styles.addByPhotoText, { color: colors.primary }]}>{t("wellness.addByPhoto")}</Text>
         </TouchableOpacity>
@@ -363,7 +356,7 @@ export function LifestyleView({
                     value={sleepReanalyzeCorrection}
                     onChangeText={setSleepReanalyzeCorrection}
                     placeholder={t("wellness.reanalyzePlaceholder")}
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={colors.textMuted}
                     editable={sleepReanalyzingId === null}
                   />
                   <View style={styles.reanalyzeActions}>
@@ -387,7 +380,7 @@ export function LifestyleView({
                       disabled={sleepReanalyzingId !== null || !sleepReanalyzeCorrection.trim()}
                     >
                       {sleepReanalyzingId === entry.extraction.id ? (
-                        <ActivityIndicator size="small" color="#0f172a" />
+                        <ActivityIndicator size="small" color={colors.primaryText} />
                       ) : (
                         <Text style={[styles.submitBtnText, { color: colors.primaryText }]}>{t("wellness.sendToAnalysis")}</Text>
                       )}
@@ -403,7 +396,7 @@ export function LifestyleView({
       {Platform.OS === "web" && webMenuEntry ? (
         <Modal visible transparent animationType="fade">
           <Pressable
-            style={[styles.webMenuBackdrop, { backgroundColor: "rgba(0,0,0,0.6)" }, Platform.OS === "web" && { backdropFilter: "blur(8px)" }]}
+            style={[styles.webMenuBackdrop, { backgroundColor: colors.modalBackdrop }, Platform.OS === "web" && { backdropFilter: "blur(8px)" }]}
             onPress={() => setWebMenuEntry(null)}
           >
             <Pressable
@@ -430,7 +423,7 @@ export function LifestyleView({
                   setWebMenuEntry(null);
                 }}
               >
-                <Text style={[styles.webMenuItemText, { color: "#dc2626" }]}>{t("wellness.deleteEntry")}</Text>
+                <Text style={[styles.webMenuItemText, { color: colors.danger }]}>{t("wellness.deleteEntry")}</Text>
               </TouchableOpacity>
               {webMenuEntry.source === "photo" && webMenuEntry.extraction?.can_reanalyze ? (
                 <TouchableOpacity
@@ -477,7 +470,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   editBtnText: {
     fontSize: 14,
@@ -504,7 +496,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: "#334155",
   },
   sleepReminderBtnText: {
     fontSize: 14,
@@ -566,7 +557,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   addByPhotoText: {
     fontSize: 14,
@@ -592,7 +582,6 @@ const styles = StyleSheet.create({
   },
   webMenuBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -610,27 +599,6 @@ const styles = StyleSheet.create({
   },
   webMenuItemText: {
     fontSize: 16,
-  },
-  smallBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  reanalyzeBtn: {
-    backgroundColor: "#38bdf8",
-  },
-  smallBtnText: {
-    fontSize: 12,
-    color: "#0f172a",
-    fontWeight: "600",
-  },
-  deleteBtn: {
-    backgroundColor: "#dc2626",
-  },
-  deleteBtnText: {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: "600",
   },
   reanalyzeForm: {
     marginTop: 6,
