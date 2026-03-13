@@ -9,6 +9,8 @@ import { it } from "./locales/it";
 import { pt } from "./locales/pt";
 import { th } from "./locales/th";
 
+export { de, es, fr, it, pt, th };
+
 export const ru = {
   app: {
     loading: "Загрузка…",
