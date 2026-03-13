@@ -1,5 +1,3 @@
-import { messages } from "./translations";
-
 export { I18nProvider, useTranslation } from "./context";
 export { messages, ru, en, de, fr, es, it, pt, th } from "./translations";
 export type { TranslationKey, Locale } from "./translations";
@@ -19,5 +17,6 @@ function get(obj: Record<string, unknown>, path: string): string | undefined {
  * Prefer useTranslation() in components so locale changes re-render.
  */
 export function t(key: string): string {
+  const { messages } = require("./translations");
   return get(messages.en as Record<string, unknown>, key) ?? key;
 }
