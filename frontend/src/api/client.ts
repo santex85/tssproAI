@@ -813,6 +813,7 @@ export interface AthleteProfileResponse {
   is_premium?: boolean;
   dev_can_toggle_premium?: boolean;
   locale?: string;
+  timezone?: string;
 }
 
 export async function getAthleteProfile(): Promise<AthleteProfileResponse> {
@@ -831,6 +832,7 @@ export async function updateAthleteProfile(body: {
   target_race_date?: string | null;
   target_race_name?: string | null;
   locale?: string | null;
+  timezone?: string | null;
 }): Promise<AthleteProfileResponse> {
   return api<AthleteProfileResponse>("/api/v1/athlete-profile", {
     method: "PATCH",
@@ -893,6 +895,11 @@ export interface BillingStatus {
 
 export async function getBillingStatus(): Promise<BillingStatus> {
   return api<BillingStatus>("/api/v1/billing/status");
+}
+
+/** Manually sync subscription status from Stripe. Returns updated billing status. */
+export async function syncBillingFromStripe(): Promise<BillingStatus> {
+  return api<BillingStatus>("/api/v1/billing/sync", { method: "POST" });
 }
 
 export interface ChatThreadItem {

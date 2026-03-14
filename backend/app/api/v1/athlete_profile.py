@@ -2,8 +2,9 @@
 
 from datetime import date
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ def _profile_response(profile: AthleteProfile | None, user: User) -> dict:
         "is_premium": user.is_premium,
         "dev_can_toggle_premium": settings.app_env != "production" or settings.dev_premium_toggle_enabled,
         "locale": user.locale or "ru",
+        "timezone": user.timezone or "UTC",
     }
     if not profile:
         return {
@@ -85,6 +87,7 @@ class AthleteProfileUpdate(BaseModel):
     target_race_date: date | None = Field(None, description="Target race date (YYYY-MM-DD)")
     target_race_name: str | None = Field(None, max_length=512, description="Target race name")
     locale: str | None = Field(None, description="User language preference (ru, en)")
+    timezone: str | None = Field(None, max_length=50, description="IANA timezone, e.g. Europe/Moscow")
 
 
 @router.get(
@@ -146,6 +149,12 @@ async def update_athlete_profile(
         normalized = _normalize_locale(body.locale)
         if normalized in SUPPORTED_LOCALES:
             user.locale = normalized
+    if body.timezone is not None:
+        try:
+            ZoneInfo(body.timezone)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid timezone: {body.timezone}")
+        user.timezone = body.timezone
     await session.commit()
     await session.refresh(profile)
     await session.refresh(user)

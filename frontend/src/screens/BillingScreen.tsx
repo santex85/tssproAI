@@ -17,6 +17,7 @@ import { useTranslation } from "../i18n";
 import {
   getBillingStatus,
   createPortalSession,
+  syncBillingFromStripe,
   type BillingStatus as BillingStatusType,
 } from "../api/client";
 
@@ -49,15 +50,18 @@ function getErrorMessage(e: unknown): string {
 export function BillingScreen({
   onClose,
   onOpenPricing,
+  onSyncSuccess,
 }: {
   onClose: () => void;
   onOpenPricing?: () => void;
+  onSyncSuccess?: () => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [status, setStatus] = useState<BillingStatusType | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +78,19 @@ export function BillingScreen({
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleSyncStatus = async () => {
+    setSyncLoading(true);
+    try {
+      const data = await syncBillingFromStripe();
+      setStatus(data);
+      onSyncSuccess?.();
+    } catch {
+      /* keep current status */
+    } finally {
+      setSyncLoading(false);
+    }
+  };
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
@@ -194,6 +211,19 @@ export function BillingScreen({
         </View>
 
         <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.buttonSecondary, { borderColor: colors.primary }]}
+            onPress={handleSyncStatus}
+            disabled={syncLoading}
+          >
+            {syncLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={[styles.buttonSecondaryText, { color: colors.primary }]}>
+                {t("billing.refreshStatus")}
+              </Text>
+            )}
+          </TouchableOpacity>
           {!isPremium && onOpenPricing && (
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}

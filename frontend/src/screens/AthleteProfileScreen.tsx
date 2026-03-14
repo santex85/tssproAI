@@ -28,6 +28,20 @@ import { useTranslation, type Locale } from "../i18n";
 import { useTheme, contentWrap } from "../theme";
 
 const LOCALES: Locale[] = ["ru", "en", "de", "fr", "es", "it", "pt", "th"];
+const POPULAR_TIMEZONES = [
+  "Europe/Moscow",
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Paris",
+  "America/New_York",
+  "America/Los_Angeles",
+  "America/Chicago",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Bangkok",
+  "Australia/Sydney",
+  "UTC",
+];
 const SETTINGS_LANG_KEYS: Record<Locale, string> = {
   ru: "settings.langRu",
   en: "settings.langEn",
@@ -82,6 +96,7 @@ export function AthleteProfileScreen({
   const { colors } = useTheme();
   const [profile, setProfile] = useState<AthleteProfileResponse | null>(null);
   const [languageDropdownVisible, setLanguageDropdownVisible] = useState(false);
+  const [timezoneDropdownVisible, setTimezoneDropdownVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -356,6 +371,65 @@ export function AthleteProfileScreen({
                 </TouchableOpacity>
               ))}
               <TouchableOpacity style={styles.languageModalClose} onPress={() => setLanguageDropdownVisible(false)}>
+                <Text style={[styles.languageModalCloseText, { color: colors.textMuted }]}>{t("common.close")}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <View style={styles.languageSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("settings.timezone")}</Text>
+          <TouchableOpacity
+            style={[styles.languageTrigger, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}
+            onPress={() => setTimezoneDropdownVisible(true)}
+          >
+            <Text style={[styles.languageLabel, { color: colors.text }]}>
+              {profile?.timezone ?? t("settings.timezoneNotSet")}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <Modal
+          visible={timezoneDropdownVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setTimezoneDropdownVisible(false)}
+        >
+          <Pressable
+            style={[styles.languageModalBackdrop, { backgroundColor: colors.modalBackdrop }, Platform.OS === "web" && { backdropFilter: "blur(4px)" }]}
+            onPress={() => setTimezoneDropdownVisible(false)}
+          >
+            <Pressable
+              style={[styles.languageModalCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[styles.languageModalTitle, { color: colors.text }]}>{t("settings.timezone")}</Text>
+              {[
+                ...(profile?.timezone && !POPULAR_TIMEZONES.includes(profile.timezone) ? [profile.timezone] : []),
+                ...POPULAR_TIMEZONES,
+              ].map((tz) => (
+                <TouchableOpacity
+                  key={tz}
+                  style={[
+                    styles.languageModalRow,
+                    profile?.timezone === tz && { backgroundColor: colors.glassBg },
+                  ]}
+                  onPress={async () => {
+                    setTimezoneDropdownVisible(false);
+                    try {
+                      const updated = await updateAthleteProfile({ timezone: tz });
+                      setProfile((p) => (p ? { ...p, timezone: updated.timezone ?? tz } : p));
+                    } catch (e) {
+                      Alert.alert(t("common.error"), getErrorMessage(e));
+                    }
+                  }}
+                >
+                  <Text style={[styles.languageModalLabel, { color: colors.text }]}>{tz}</Text>
+                  {profile?.timezone === tz && <Text style={[styles.languageModalCheck, { color: colors.primary }]}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.languageModalClose} onPress={() => setTimezoneDropdownVisible(false)}>
                 <Text style={[styles.languageModalCloseText, { color: colors.textMuted }]}>{t("common.close")}</Text>
               </TouchableOpacity>
             </Pressable>

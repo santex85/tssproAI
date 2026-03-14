@@ -28,6 +28,8 @@ export const th = {
     langTh: "ไทย",
     langSwitchToEn: "Switch to English",
     langSwitchToRu: "เปลี่ยนเป็นรัสเซีย",
+    timezone: "เขตเวลา",
+    timezoneNotSet: "ไม่ได้เลือก",
   },
   common: {
     close: "ปิด",
@@ -493,6 +495,7 @@ export const th = {
   },
   billing: {
     title: "การสมัครและจำกัด",
+    refreshStatus: "รีเฟรชสถานะการสมัคร",
     planFree: "ฟรี",
     planPremium: "Premium",
     photoLimit: "การวิเคราะห์รูปด้วย AI",

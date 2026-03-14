@@ -146,6 +146,62 @@ async def create_portal_session_alias(
 
 
 @router.post(
+    "/sync",
+    summary="Sync subscription status from Stripe",
+    responses={401: {"description": "Not authenticated"}},
+)
+async def sync_billing_from_stripe(
+    session: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> dict:
+    """Manually sync subscription status from Stripe. Use when webhook may have failed or user returned before webhook."""
+    await stripe_service.sync_user_subscriptions_from_stripe(session, user)
+    await session.commit()
+    # Refetch user to get updated is_premium
+    await session.refresh(user)
+    today = date.today()
+    r_sub = await session.execute(
+        select(Subscription).where(Subscription.user_id == user.id)
+    )
+    sub = r_sub.scalar_one_or_none()
+
+    r_usage = await session.execute(
+        select(DailyUsage).where(
+            DailyUsage.user_id == user.id,
+            DailyUsage.date == today,
+        )
+    )
+    usage = r_usage.scalar_one_or_none()
+    if not usage:
+        usage = DailyUsage(user_id=user.id, date=today, photo_analyses=0, chat_messages=0)
+        session.add(usage)
+        await session.flush()
+
+    plan = "Premium" if user.is_premium else "Free"
+    subscription_status = sub.status if sub else None
+    current_period_end = None
+    if sub and sub.current_period_end:
+        current_period_end = sub.current_period_end.isoformat()
+
+    if user.is_premium:
+        photo_analyses_limit = None
+        chat_messages_limit = None
+    else:
+        photo_analyses_limit = settings.free_daily_photo_limit
+        chat_messages_limit = settings.free_daily_chat_limit
+
+    return {
+        "plan": plan,
+        "subscription_status": subscription_status,
+        "current_period_end": current_period_end,
+        "photo_analyses_used": usage.photo_analyses,
+        "photo_analyses_limit": photo_analyses_limit,
+        "chat_messages_used": usage.chat_messages,
+        "chat_messages_limit": chat_messages_limit,
+    }
+
+
+@router.post(
     "/webhook",
     summary="Stripe webhook",
     include_in_schema=False,

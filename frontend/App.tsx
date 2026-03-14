@@ -77,7 +77,7 @@ function LazyPricingScreen(props: { onClose: () => void }) {
   return <PricingScreen {...props} />;
 }
 
-function LazyBillingScreen(props: { onClose: () => void; onOpenPricing: () => void }) {
+function LazyBillingScreen(props: { onClose: () => void; onOpenPricing: () => void; onSyncSuccess?: () => void }) {
   const { BillingScreen } = require("./src/screens/BillingScreen");
   return <BillingScreen {...props} />;
 }
@@ -137,6 +137,23 @@ function AppContent() {
   }, [isWeb]);
 
   const ready = isReady && (fontsLoaded || !isWeb);
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (!isWeb || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+    window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+    const refetchAndPoll = async () => {
+      await getMe().then(setUser);
+      for (let i = 0; i < 3; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        await getMe().then(setUser);
+      }
+    };
+    refetchAndPoll().catch(() => {});
+    setBillingVisible(true);
+  }, [ready, user, isWeb]);
 
   useEffect(() => {
     if (!ready || user) return;
@@ -463,6 +480,7 @@ function AppContent() {
                 setBillingVisible(false);
                 setPricingVisible(true);
               }}
+              onSyncSuccess={() => getMe().then(setUser)}
             />
           </View>
         )}

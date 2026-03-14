@@ -28,6 +28,8 @@ export const de = {
     langTh: "Thailändisch",
     langSwitchToEn: "Switch to English",
     langSwitchToRu: "Auf Russisch wechseln",
+    timezone: "Zeitzone",
+    timezoneNotSet: "Nicht ausgewählt",
   },
   common: {
     close: "Schließen",
@@ -493,6 +495,7 @@ export const de = {
   },
   billing: {
     title: "Abonnement & Limits",
+    refreshStatus: "Abonnementstatus aktualisieren",
     planFree: "Kostenlos",
     planPremium: "Premium",
     photoLimit: "KI-Fotoanalyse",

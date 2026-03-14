@@ -95,6 +95,21 @@ up-prod:
 migrate-prod:
 	$(COMPOSE_PROD) exec -T backend alembic upgrade head
 
+# Добавить Stripe (billing) в .env на сервере и обновить backend.
+# Пример: make add-stripe-config STRIPE_PUBLISHABLE_KEY=pk_live_... STRIPE_SECRET_KEY=sk_live_... STRIPE_PRICE_MONTHLY=price_... STRIPE_PRICE_ANNUAL=price_... [STRIPE_WEBHOOK_SECRET=whsec_...]
+add-stripe-config:
+	@if [ -z "$(STRIPE_SECRET_KEY)" ] || [ -z "$(STRIPE_PRICE_MONTHLY)" ] || [ -z "$(STRIPE_PRICE_ANNUAL)" ]; then \
+		echo "Usage: make add-stripe-config STRIPE_PUBLISHABLE_KEY=pk_live_... STRIPE_SECRET_KEY=sk_live_... STRIPE_PRICE_MONTHLY=price_... STRIPE_PRICE_ANNUAL=price_... [STRIPE_WEBHOOK_SECRET=whsec_...]"; exit 1; fi; \
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && \
+		(grep -q '^STRIPE_PUBLISHABLE_KEY=' .env 2>/dev/null && sed -i.bak 's|^STRIPE_PUBLISHABLE_KEY=.*|STRIPE_PUBLISHABLE_KEY=$(STRIPE_PUBLISHABLE_KEY)|' .env || echo 'STRIPE_PUBLISHABLE_KEY=$(STRIPE_PUBLISHABLE_KEY)' >> .env) && \
+		(grep -q '^STRIPE_SECRET_KEY=' .env 2>/dev/null && sed -i.bak 's|^STRIPE_SECRET_KEY=.*|STRIPE_SECRET_KEY=$(STRIPE_SECRET_KEY)|' .env || echo 'STRIPE_SECRET_KEY=$(STRIPE_SECRET_KEY)' >> .env) && \
+		(grep -q '^STRIPE_PRICE_MONTHLY=' .env 2>/dev/null && sed -i.bak 's|^STRIPE_PRICE_MONTHLY=.*|STRIPE_PRICE_MONTHLY=$(STRIPE_PRICE_MONTHLY)|' .env || echo 'STRIPE_PRICE_MONTHLY=$(STRIPE_PRICE_MONTHLY)' >> .env) && \
+		(grep -q '^STRIPE_PRICE_ANNUAL=' .env 2>/dev/null && sed -i.bak 's|^STRIPE_PRICE_ANNUAL=.*|STRIPE_PRICE_ANNUAL=$(STRIPE_PRICE_ANNUAL)|' .env || echo 'STRIPE_PRICE_ANNUAL=$(STRIPE_PRICE_ANNUAL)' >> .env)"; \
+	$(if $(STRIPE_WEBHOOK_SECRET),ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && (grep -q '^STRIPE_WEBHOOK_SECRET=' .env 2>/dev/null && sed -i.bak 's|^STRIPE_WEBHOOK_SECRET=.*|STRIPE_WEBHOOK_SECRET=$(STRIPE_WEBHOOK_SECRET)|' .env || echo 'STRIPE_WEBHOOK_SECRET=$(STRIPE_WEBHOOK_SECRET)' >> .env)",true); \
+	ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && set -a && . ./.env && set +a && docker service update --env-add STRIPE_PUBLISHABLE_KEY=\$$STRIPE_PUBLISHABLE_KEY --env-add STRIPE_SECRET_KEY=\$$STRIPE_SECRET_KEY --env-add STRIPE_PRICE_MONTHLY=\$$STRIPE_PRICE_MONTHLY --env-add STRIPE_PRICE_ANNUAL=\$$STRIPE_PRICE_ANNUAL st2_backend"; \
+	$(if $(STRIPE_WEBHOOK_SECRET),ssh $(DEPLOY_USER)@$(DEPLOY_HOST) "cd $(DEPLOY_PATH) && set -a && . ./.env && set +a && docker service update --env-add STRIPE_WEBHOOK_SECRET=\$$STRIPE_WEBHOOK_SECRET st2_backend",true); \
+	echo "Stripe config added to server and backend updated."
+
 # Добавить Resend (email) в .env на сервере и обновить backend. Пример: make add-resend-config RESEND_API_KEY=re_xxx MAIL_FROM=noreply@tsspro.tech
 add-resend-config:
 	@if [ -z "$(RESEND_API_KEY)" ]; then echo "Usage: make add-resend-config RESEND_API_KEY=re_xxx MAIL_FROM=noreply@domain.com"; exit 1; fi; \

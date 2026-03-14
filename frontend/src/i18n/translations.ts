@@ -36,6 +36,8 @@ export const ru = {
     langTh: "Тайский",
     langSwitchToEn: "Switch to English",
     langSwitchToRu: "Переключить на русский",
+    timezone: "Часовой пояс",
+    timezoneNotSet: "Не выбран",
   },
   common: {
     add: "Добавить",
@@ -513,6 +515,7 @@ export const ru = {
   },
   billing: {
     title: "Подписка и лимиты",
+    refreshStatus: "Обновить статус подписки",
     planFree: "Free",
     planPremium: "Premium",
     photoLimit: "AI-анализ фото",
@@ -554,6 +557,8 @@ export const en = {
     langTh: "Thai",
     langSwitchToEn: "Switch to English",
     langSwitchToRu: "Switch to Russian",
+    timezone: "Time zone",
+    timezoneNotSet: "Not set",
   },
   common: {
     add: "Add",
@@ -1031,6 +1036,7 @@ export const en = {
   },
   billing: {
     title: "Subscription & limits",
+    refreshStatus: "Refresh subscription status",
     planFree: "Free",
     planPremium: "Premium",
     photoLimit: "AI photo analysis",

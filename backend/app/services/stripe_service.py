@@ -185,11 +185,33 @@ async def handle_checkout_session_completed(
     if user_id and customer_id:
         ru = await session.execute(select(User).where(User.id == user_id))
         u = ru.scalar_one_or_none()
-        if u and not u.stripe_customer_id:
-            u.stripe_customer_id = customer_id if isinstance(customer_id, str) else None
+        if u and isinstance(customer_id, str):
+            u.stripe_customer_id = customer_id
             await session.flush()
     logger.info("Stripe checkout.session.completed: syncing subscription %s for user_id=%s", sub_id, user_id)
     await sync_subscription_status(session, sub_id)
+
+
+async def sync_user_subscriptions_from_stripe(
+    session: AsyncSession, user: User
+) -> bool:
+    """Sync all subscriptions for user's Stripe customer. Returns True on success."""
+    if not settings.stripe_secret_key or not user.stripe_customer_id:
+        return False
+    try:
+        subs = stripe.Subscription.list(
+            customer=user.stripe_customer_id,
+            status="all",
+            limit=100,
+        )
+        for sub in (subs.data or []):
+            sub_id = sub.id if hasattr(sub, "id") else sub.get("id")
+            if sub_id:
+                await sync_subscription_status(session, sub_id)
+        return True
+    except Exception as e:
+        logger.warning("sync_user_subscriptions_from_stripe failed: %s", e)
+        return False
 
 
 async def handle_subscription_updated_deleted(
