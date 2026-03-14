@@ -85,7 +85,7 @@ async def sync_subscription_status(
     sub = stripe.Subscription.retrieve(
         stripe_subscription_id, expand=["items.data.price"]
     )
-    status = (sub.status or "").lower()
+    status = (sub.get("status") or "").lower()
     is_active = status in ACTIVE_STATUSES
 
     # Resolve plan from price id (use sub.get("items") to avoid dict.items collision)
@@ -100,9 +100,11 @@ async def sync_subscription_status(
             if price_id == settings.stripe_price_annual:
                 plan = "annual"
 
-    current_start = datetime.fromtimestamp(sub.current_period_start, tz=timezone.utc)
-    current_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc)
-    trial_end_ts = sub.trial_end
+    current_start_ts = sub.get("current_period_start")
+    current_start = datetime.fromtimestamp(current_start_ts, tz=timezone.utc) if current_start_ts else datetime.now(timezone.utc)
+    current_end_ts = sub.get("current_period_end")
+    current_end = datetime.fromtimestamp(current_end_ts, tz=timezone.utc) if current_end_ts else datetime.now(timezone.utc)
+    trial_end_ts = sub.get("trial_end")
     trial_end = datetime.fromtimestamp(trial_end_ts, tz=timezone.utc) if trial_end_ts else None
 
     r = await session.execute(
@@ -117,10 +119,13 @@ async def sync_subscription_status(
         db_sub.current_period_start = current_start
         db_sub.current_period_end = current_end
         db_sub.trial_end = trial_end
-        db_sub.cancel_at_period_end = bool(sub.cancel_at_period_end)
+        db_sub.cancel_at_period_end = bool(sub.get("cancel_at_period_end", False))
         db_sub.updated_at = datetime.now(timezone.utc)
     else:
-        customer_id = sub.customer if isinstance(sub.customer, str) else sub.customer.id
+        raw_customer = sub.get("customer")
+        customer_id = raw_customer if isinstance(raw_customer, str) else (raw_customer.get("id") if isinstance(raw_customer, dict) else getattr(raw_customer, "id", None) if raw_customer else None)
+        if not customer_id:
+            return None
         ru = await session.execute(
             select(User).where(User.stripe_customer_id == customer_id)
         )
@@ -137,7 +142,7 @@ async def sync_subscription_status(
             current_period_start=current_start,
             current_period_end=current_end,
             trial_end=trial_end,
-            cancel_at_period_end=bool(sub.cancel_at_period_end),
+            cancel_at_period_end=bool(sub.get("cancel_at_period_end", False)),
         )
         session.add(db_sub)
 
