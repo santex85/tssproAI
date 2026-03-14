@@ -29,6 +29,7 @@ import {
   getMe,
   savePushToken,
   setOnUnauthorized,
+  syncBillingFromStripe,
   syncIntervals,
   type SleepExtractionResponse,
   type WellnessPhotoResult,
@@ -145,8 +146,9 @@ function AppContent() {
     if (params.get("checkout") !== "success") return;
     window.history.replaceState({}, "", window.location.pathname + window.location.hash);
     const refetchAndPoll = async () => {
+      await syncBillingFromStripe().catch(() => {});
       await getMe().then(setUser);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         await getMe().then(setUser);
       }
