@@ -140,6 +140,16 @@ async def sync_subscription_status(
         logger.info("sync_subscription_status sub_id=%s: db_sub by user_id=%s", stripe_subscription_id, "found" if db_sub else "not found")
 
     if db_sub:
+        # Don't overwrite active subscription with canceled one
+        current_is_active = db_sub.status in ACTIVE_STATUSES
+        new_is_active = status in ACTIVE_STATUSES
+        if current_is_active and not new_is_active:
+            logger.info(
+                "sync_subscription_status sub_id=%s: skipping update, keeping active (current=%s, new=%s)",
+                stripe_subscription_id, db_sub.status, status,
+            )
+            return db_sub
+
         db_sub.stripe_subscription_id = stripe_subscription_id
         raw_cust = sub.get("customer")
         cust_id = raw_cust if isinstance(raw_cust, str) else (raw_cust.get("id") if isinstance(raw_cust, dict) else getattr(raw_cust, "id", None) if raw_cust else None)
