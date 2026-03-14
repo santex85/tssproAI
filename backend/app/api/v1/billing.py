@@ -155,7 +155,7 @@ async def sync_billing_from_stripe(
     user: Annotated[User, Depends(get_current_user)],
 ) -> dict:
     """Manually sync subscription status from Stripe. Use when webhook may have failed or user returned before webhook."""
-    await stripe_service.sync_user_subscriptions_from_stripe(session, user)
+    sync_ok = await stripe_service.sync_user_subscriptions_from_stripe(session, user)
     await session.commit()
     # Refetch user to get updated is_premium
     await session.refresh(user)
@@ -198,6 +198,7 @@ async def sync_billing_from_stripe(
         "photo_analyses_limit": photo_analyses_limit,
         "chat_messages_used": usage.chat_messages,
         "chat_messages_limit": chat_messages_limit,
+        "sync_success": sync_ok,
     }
 
 

@@ -496,6 +496,7 @@ export const de = {
   billing: {
     title: "Abonnement & Limits",
     refreshStatus: "Abonnementstatus aktualisieren",
+    syncFailed: "Status konnte nicht aktualisiert werden. Verbindung prüfen oder später erneut versuchen.",
     planFree: "Kostenlos",
     planPremium: "Premium",
     photoLimit: "KI-Fotoanalyse",

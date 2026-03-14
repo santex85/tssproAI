@@ -62,6 +62,7 @@ export function BillingScreen({
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,12 +82,17 @@ export function BillingScreen({
 
   const handleSyncStatus = async () => {
     setSyncLoading(true);
+    setSyncError(null);
     try {
       const data = await syncBillingFromStripe();
       setStatus(data);
-      onSyncSuccess?.();
+      if (data.sync_success === false) {
+        setSyncError(t("billing.syncFailed"));
+      } else {
+        onSyncSuccess?.();
+      }
     } catch {
-      /* keep current status */
+      setSyncError(t("billing.syncFailed"));
     } finally {
       setSyncLoading(false);
     }
@@ -224,6 +230,11 @@ export function BillingScreen({
               </Text>
             )}
           </TouchableOpacity>
+          {syncError && (
+            <Text style={[styles.syncErrorText, { color: colors.textMuted }]}>
+              {syncError}
+            </Text>
+          )}
           {!isPremium && onOpenPricing && (
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.primary }]}
@@ -306,4 +317,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   buttonSecondaryText: { fontSize: 16, fontWeight: "600" },
+  syncErrorText: { fontSize: 13, marginTop: 4, textAlign: "center" },
 });

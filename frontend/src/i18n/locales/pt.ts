@@ -496,6 +496,7 @@ export const pt = {
   billing: {
     title: "Subscrição e limites",
     refreshStatus: "Atualizar estado da subscrição",
+    syncFailed: "Falha ao atualizar o estado. Verifique a sua ligação ou tente novamente mais tarde.",
     planFree: "Grátis",
     planPremium: "Premium",
     photoLimit: "Análise de foto com IA",

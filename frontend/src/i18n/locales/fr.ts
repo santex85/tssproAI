@@ -496,6 +496,7 @@ export const fr = {
   billing: {
     title: "Abonnement et limites",
     refreshStatus: "Actualiser le statut de l'abonnement",
+    syncFailed: "Impossible de mettre à jour le statut. Vérifiez votre connexion ou réessayez plus tard.",
     planFree: "Gratuit",
     planPremium: "Premium",
     photoLimit: "Analyse photo IA",

@@ -88,12 +88,17 @@ async def sync_subscription_status(
     status = (sub.status or "").lower()
     is_active = status in ACTIVE_STATUSES
 
-    # Resolve plan from price id
+    # Resolve plan from price id (use sub.get("items") to avoid dict.items collision)
     plan = "monthly"
-    if sub.items and sub.items.data:
-        price_id = sub.items.data[0].price.id if sub.items.data[0].price else None
-        if price_id == settings.stripe_price_annual:
-            plan = "annual"
+    items = sub.get("items") if hasattr(sub, "get") else None
+    if items:
+        items_data = items.get("data", []) if hasattr(items, "get") else getattr(items, "data", []) or []
+        if items_data:
+            first = items_data[0]
+            price = first.get("price") if hasattr(first, "get") else getattr(first, "price", None)
+            price_id = (price.get("id") if hasattr(price, "get") else getattr(price, "id", None)) if price else None
+            if price_id == settings.stripe_price_annual:
+                plan = "annual"
 
     current_start = datetime.fromtimestamp(sub.current_period_start, tz=timezone.utc)
     current_end = datetime.fromtimestamp(sub.current_period_end, tz=timezone.utc)
@@ -203,6 +208,8 @@ async def sync_user_subscriptions_from_stripe(
     if not user.stripe_customer_id and user.email:
         try:
             customers = stripe.Customer.list(email=user.email, limit=1)
+            if not customers.data and user.email != user.email.lower():
+                customers = stripe.Customer.list(email=user.email.lower(), limit=1)
             if customers.data:
                 user.stripe_customer_id = customers.data[0].id
                 await session.flush()

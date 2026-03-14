@@ -516,6 +516,7 @@ export const ru = {
   billing: {
     title: "Подписка и лимиты",
     refreshStatus: "Обновить статус подписки",
+    syncFailed: "Не удалось обновить статус. Проверьте подключение или попробуйте позже.",
     planFree: "Free",
     planPremium: "Premium",
     photoLimit: "AI-анализ фото",
@@ -1037,6 +1038,7 @@ export const en = {
   billing: {
     title: "Subscription & limits",
     refreshStatus: "Refresh subscription status",
+    syncFailed: "Failed to update status. Check your connection or try again later.",
     planFree: "Free",
     planPremium: "Premium",
     photoLimit: "AI photo analysis",

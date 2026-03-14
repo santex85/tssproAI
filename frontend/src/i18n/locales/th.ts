@@ -496,6 +496,7 @@ export const th = {
   billing: {
     title: "การสมัครและจำกัด",
     refreshStatus: "รีเฟรชสถานะการสมัคร",
+    syncFailed: "ไม่สามารถอัปเดตสถานะได้ ตรวจสอบการเชื่อมต่อหรือลองอีกครั้งในภายหลัง",
     planFree: "ฟรี",
     planPremium: "Premium",
     photoLimit: "การวิเคราะห์รูปด้วย AI",

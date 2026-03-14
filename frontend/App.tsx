@@ -146,7 +146,23 @@ function AppContent() {
     if (params.get("checkout") !== "success") return;
     window.history.replaceState({}, "", window.location.pathname + window.location.hash);
     const refetchAndPoll = async () => {
-      await syncBillingFromStripe().catch(() => {});
+      try {
+        const syncRes = await syncBillingFromStripe();
+        if (syncRes.sync_success === false) {
+          Sentry.addBreadcrumb({
+            message: "syncBillingFromStripe returned sync_success=false on checkout=success",
+            category: "billing",
+            level: "warning",
+          });
+        }
+      } catch (e) {
+        Sentry.addBreadcrumb({
+          message: "syncBillingFromStripe failed on checkout=success",
+          category: "billing",
+          level: "error",
+          data: { error: String(e) },
+        });
+      }
       await getMe().then(setUser);
       for (let i = 0; i < 2; i++) {
         await new Promise((r) => setTimeout(r, 2000));

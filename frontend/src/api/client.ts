@@ -891,6 +891,8 @@ export interface BillingStatus {
   photo_analyses_limit: number | null;
   chat_messages_used: number;
   chat_messages_limit: number | null;
+  /** Present only when sync endpoint returns; true if sync succeeded. */
+  sync_success?: boolean;
 }
 
 export async function getBillingStatus(): Promise<BillingStatus> {
