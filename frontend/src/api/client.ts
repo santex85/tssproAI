@@ -286,6 +286,11 @@ export interface NutritionResult {
   extended_nutrients?: Record<string, number> | null;
 }
 
+export type EditableNutritionFields = Pick<
+  NutritionResult,
+  "name" | "portion_grams" | "calories" | "protein_g" | "fat_g" | "carbs_g"
+>;
+
 export interface SleepPhaseSegment {
   start: string;
   end: string;
@@ -947,7 +952,12 @@ export async function sendChatMessage(
 ): Promise<{ reply: string }> {
   return api<{ reply: string }>("/api/v1/chat/send", {
     method: "POST",
-    body: { message, run_orchestrator: runOrchestrator, thread_id: threadId ?? undefined },
+    body: {
+      message,
+      run_orchestrator: runOrchestrator,
+      thread_id: threadId ?? undefined,
+      client_now: new Date().toISOString(),
+    },
   });
 }
 
@@ -966,6 +976,7 @@ export async function sendChatMessageWithFit(
   form.append("run_orchestrator", "false");
   if (threadId != null) form.append("thread_id", String(threadId));
   form.append("save_workout", saveWorkout ? "true" : "false");
+  form.append("client_now", new Date().toISOString());
   if (file instanceof Blob) {
     form.append("file", file, "workout.fit");
   } else {
@@ -1008,6 +1019,7 @@ export async function sendChatMessageWithImage(
   const form = new FormData();
   form.append("message", message);
   if (threadId != null) form.append("thread_id", String(threadId));
+  form.append("client_now", new Date().toISOString());
   if (imageFile instanceof Blob) {
     const ext = (imageFile as File).name?.match(/\.[a-z]+$/i)?.[0] || ".jpg";
     form.append("file", imageFile, `photo${ext}`);

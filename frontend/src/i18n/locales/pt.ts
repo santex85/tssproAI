@@ -414,7 +414,7 @@ export const pt = {
     sleepRecognized: "Dados de sono reconhecidos",
     wellnessRecognized: "Pulso e HRV reconhecidos",
     workoutRecognized: "Treino reconhecido",
-    workoutSaved: "Treino guardado.",
+    workoutSaved: "Treino salvo.",
     workoutSportType: "Tipo",
     rhrLabel: "Frequência cardíaca em repouso (RHR)",
     noRhrHrv: "Não foi possível extrair RHR ou HRV.",

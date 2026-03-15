@@ -176,6 +176,41 @@ def _day_bounds_utc(d: date, tz_name: str) -> tuple[datetime, datetime]:
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
+def _parse_and_validate_client_now(client_now_str: str | None) -> datetime | None:
+    """Parse client_now (ISO 8601 UTC). Return None if missing, invalid, or outside [-24h, +5min] from server UTC."""
+    if not client_now_str or not client_now_str.strip():
+        return None
+    try:
+        dt = datetime.fromisoformat(client_now_str.strip().replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        server_now = datetime.now(timezone.utc)
+        delta = dt - server_now
+        if delta < timedelta(hours=-24) or delta > timedelta(minutes=5):
+            return None
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
+def _format_current_datetime_for_prompt(client_now_utc: datetime | None, user_tz: str | None) -> str:
+    """Format 'Current date and time (athlete's local)' block for the prompt. Uses client_now if valid, else server now."""
+    tz_str = (user_tz or "").strip() or "UTC"
+    try:
+        tz = ZoneInfo(tz_str)
+    except Exception:
+        tz = timezone.utc
+    if client_now_utc is not None:
+        now_local = client_now_utc.astimezone(tz)
+    else:
+        now_local = datetime.now(tz)
+    date_str = now_local.strftime("%Y-%m-%d")
+    time_str = now_local.strftime("%H:%M")
+    return f"## Current date and time (athlete's local)\n{date_str}, {time_str}. Timezone: {tz_str}."
+
+
 async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium: bool = False, user_tz: str | None = None) -> str:
     """Build a compressed text summary: profile, food/wellness today + last N days, last M workouts. No passwords/tokens."""
     tz_str = (user_tz or "").strip() or "UTC"
@@ -453,6 +488,7 @@ class SendMessageBody(BaseModel):
     message: str
     run_orchestrator: bool = False  # if True, run daily decision and include in context
     thread_id: int | None = None  # if None, use default (first) thread or create one
+    client_now: str | None = None  # optional ISO 8601 UTC; used for "current date/time" in prompt
 
 
 class CreateThreadBody(BaseModel):
@@ -676,6 +712,9 @@ async def send_message(
             from app.config import settings
             from app.services.gemini_common import run_generate_content
             context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
+            client_now_utc = _parse_and_validate_client_now(body.client_now)
+            datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+            context = f"{datetime_block}\n\n{context}"
             model = genai.GenerativeModel(settings.gemini_model)
             chat_system = _chat_system_with_locale(locale, user.is_premium)
             conversation_block = await _get_conversation_block(session, uid, thread_id)
@@ -720,6 +759,7 @@ async def send_message_with_file(
     run_orchestrator: Annotated[str, Form()] = "false",
     thread_id: Annotated[str | None, Form()] = None,
     save_workout: Annotated[str, Form()] = "false",
+    client_now: Annotated[str | None, Form()] = None,
     file: Annotated[UploadFile | None, File()] = None,
 ) -> dict:
     """Send a message with optional FIT file. Uses multipart/form-data. When file is .fit, adds workout summary to context and optionally saves to diary."""
@@ -773,6 +813,9 @@ async def send_message_with_file(
             from app.services.gemini_common import run_generate_content
 
             context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
+            client_now_utc = _parse_and_validate_client_now(client_now)
+            datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+            context = f"{datetime_block}\n\n{context}"
             if fit_summary:
                 context += "\n\n## Uploaded workout (this message)\n" + fit_summary
             if fit_data:
@@ -825,6 +868,7 @@ async def send_message_with_image(
     _usage: Annotated[None, Depends(check_chat_usage)],
     message: Annotated[str, Form()] = "",
     thread_id: Annotated[str | None, Form()] = None,
+    client_now: Annotated[str | None, Form()] = None,
     file: Annotated[UploadFile | None, File()] = None,
 ) -> dict:
     """Send a chat message with an attached image. Premium only. Image is analyzed and description is added to context."""
@@ -858,6 +902,9 @@ async def send_message_with_image(
         from app.services.gemini_common import run_generate_content
 
         context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
+        client_now_utc = _parse_and_validate_client_now(client_now)
+        datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+        context = f"{datetime_block}\n\n{context}"
         context += "\n\n## Photo in this message\n" + image_description
         model = genai.GenerativeModel(settings.gemini_model)
         chat_system = _chat_system_with_locale(locale, is_premium=True)
