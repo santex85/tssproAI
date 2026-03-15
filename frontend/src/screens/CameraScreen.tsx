@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -179,38 +180,26 @@ export function CameraScreen({
     setImageLoaded(false);
   }, [selectedPhotoUri]);
 
-  const pickImage = async () => {
+  const processImage = async (
+    assetUri: string,
+    options?: { fileName?: string }
+  ) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("camera.needAccess"), t("camera.needPhotoAccess"));
-      return;
-    }
-    const isNativeApp = Platform.OS !== "web";
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: isNativeApp,
-      aspect: isNativeApp ? [1, 1] as [number, number] : undefined,
-      quality: 0.8,
-    });
-    if (pickerResult.canceled) return;
-    const asset = pickerResult.assets[0];
-    if (!asset?.uri) {
-      devLog("pickImage: no asset uri", "warn");
-      Alert.alert(t("common.error"), t("camera.getPhotoError"));
-      return;
-    }
-    devLog("pickImage: selected, starting upload (preview)");
     setLoading(true);
     setPhotoResult(null);
-    setSelectedPhotoUri(asset.uri);
+    setSelectedPhotoUri(assetUri);
     try {
+      devLog("processImage: starting upload (preview)");
       const res = await uploadPhotoForAnalysis(
-        { uri: asset.uri, name: "meal.jpg", type: "image/jpeg" },
+        {
+          uri: assetUri,
+          name: options?.fileName ?? "meal.jpg",
+          type: "image/jpeg",
+        },
         undefined,
         false
       );
-      devLog("pickImage: upload success");
+      devLog("processImage: upload success");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setPhotoResult(res);
       if (res?.type === "sleep" && res.sleep?.id != null && res.sleep.id > 0) {
@@ -233,7 +222,7 @@ export function CameraScreen({
         setEditedFood(null);
       }
     } catch (e) {
-      devLog(`pickImage: error ${e instanceof Error ? e.message : String(e)}`, "error");
+      devLog(`processImage: error ${e instanceof Error ? e.message : String(e)}`, "error");
       const msg = e instanceof Error ? e.message : "";
       if ((msg.includes("429") || msg.includes("limit") || msg.includes("Daily limit")) && onOpenPricing) {
         setPremiumGateVisible(true);
@@ -243,6 +232,29 @@ export function CameraScreen({
     } finally {
       setLoading(false);
     }
+  };
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("camera.needAccess"), t("camera.needPhotoAccess"));
+      return;
+    }
+    const isNativeApp = Platform.OS !== "web";
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: isNativeApp,
+      aspect: isNativeApp ? [1, 1] as [number, number] : undefined,
+      quality: 0.8,
+    });
+    if (pickerResult.canceled) return;
+    const asset = pickerResult.assets[0];
+    if (!asset?.uri) {
+      devLog("pickImage: no asset uri", "warn");
+      Alert.alert(t("common.error"), t("camera.getPhotoError"));
+      return;
+    }
+    await processImage(asset.uri);
   };
 
   const takePhoto = async () => {
@@ -264,48 +276,7 @@ export function CameraScreen({
       Alert.alert(t("common.error"), t("camera.getPhotoError"));
       return;
     }
-    devLog("takePhoto: captured, starting upload (preview)");
-    setLoading(true);
-    setPhotoResult(null);
-    setSelectedPhotoUri(asset.uri);
-    try {
-      const res = await uploadPhotoForAnalysis(
-        { uri: asset.uri, name: "meal.jpg", type: "image/jpeg" },
-        undefined,
-        false
-      );
-      devLog("takePhoto: upload success");
-      setPhotoResult(res);
-      if (res?.type === "sleep" && res.sleep?.id != null && res.sleep.id > 0) {
-        onSleepSaved?.(res.sleep);
-      }
-      if (res?.type === "wellness") {
-        // Don't call onWellnessSaved here — user may tap Save later; call in handleSave.
-      }
-      if (res?.type === "food") {
-        setSelectedMealType("other");
-        setEditedFood({
-          name: res.food.name,
-          portion_grams: res.food.portion_grams,
-          calories: res.food.calories,
-          protein_g: res.food.protein_g,
-          fat_g: res.food.fat_g,
-          carbs_g: res.food.carbs_g,
-        });
-      } else {
-        setEditedFood(null);
-      }
-    } catch (e) {
-      devLog(`takePhoto: error ${e instanceof Error ? e.message : String(e)}`, "error");
-      const msg = e instanceof Error ? e.message : "";
-      if ((msg.includes("429") || msg.includes("limit") || msg.includes("Daily limit")) && onOpenPricing) {
-        setPremiumGateVisible(true);
-      } else {
-        Alert.alert(t("common.error"), getPhotoErrorMessage(e, t));
-      }
-    } finally {
-      setLoading(false);
-    }
+    await processImage(asset.uri);
   };
 
   const handleSave = async () => {
@@ -435,46 +406,7 @@ export function CameraScreen({
 
   const loadTestImage = async () => {
     const TEST_IMAGE_URL = "https://picsum.photos/id/292/800/600";
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setLoading(true);
-    setPhotoResult(null);
-    setSelectedPhotoUri(TEST_IMAGE_URL);
-    try {
-      const res = await uploadPhotoForAnalysis(
-        { uri: TEST_IMAGE_URL, name: "test-meal.jpg", type: "image/jpeg" },
-        undefined,
-        false
-      );
-      devLog("loadTestImage: upload success");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setPhotoResult(res);
-      if (res?.type === "sleep" && res.sleep?.id != null && res.sleep.id > 0) {
-        onSleepSaved?.(res.sleep);
-      }
-      if (res?.type === "food") {
-        setSelectedMealType("other");
-        setEditedFood({
-          name: res.food.name,
-          portion_grams: res.food.portion_grams,
-          calories: res.food.calories,
-          protein_g: res.food.protein_g,
-          fat_g: res.food.fat_g,
-          carbs_g: res.food.carbs_g,
-        });
-      } else {
-        setEditedFood(null);
-      }
-    } catch (e) {
-      devLog(`loadTestImage: error ${e instanceof Error ? e.message : String(e)}`, "error");
-      const msg = e instanceof Error ? e.message : "";
-      if ((msg.includes("429") || msg.includes("limit") || msg.includes("Daily limit")) && onOpenPricing) {
-        setPremiumGateVisible(true);
-      } else {
-        Alert.alert(t("common.error"), getPhotoErrorMessage(e, t));
-      }
-    } finally {
-      setLoading(false);
-    }
+    await processImage(TEST_IMAGE_URL, { fileName: "test-meal.jpg" });
   };
 
   const handleReanalyze = async () => {
@@ -556,7 +488,17 @@ export function CameraScreen({
         </View>
       )}
 
-      <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainScrollContent}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={20}
+      >
+        <ScrollView
+          style={styles.mainScroll}
+          contentContainerStyle={styles.mainScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
         {loading && (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color="#38bdf8" />
@@ -872,6 +814,7 @@ export function CameraScreen({
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <PremiumGateModal
         visible={premiumGateVisible}
