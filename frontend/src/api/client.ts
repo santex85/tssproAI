@@ -286,6 +286,11 @@ export interface NutritionResult {
   extended_nutrients?: Record<string, number> | null;
 }
 
+export type EditableNutritionFields = Pick<
+  NutritionResult,
+  "name" | "portion_grams" | "calories" | "protein_g" | "fat_g" | "carbs_g"
+>;
+
 export interface SleepPhaseSegment {
   start: string;
   end: string;

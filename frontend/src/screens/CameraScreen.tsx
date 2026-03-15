@@ -7,8 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Image,
-  TextInput,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,8 +21,9 @@ import {
   createOrUpdateWellness,
   createWorkout,
   type NutritionResult,
+  type PhotoAnalyzeResponse,
+  type EditableNutritionFields,
   type SleepExtractionResponse,
-  type SleepExtractedData,
   type WellnessPhotoResult,
   type WorkoutPhotoResult,
 } from "../api/client";
@@ -33,6 +32,7 @@ import { useLoadingStages } from "../hooks/useLoadingStages";
 import * as Sentry from "@sentry/react-native";
 import { devLog, getLogs, clearLogs, subscribe, isDevLogEnabled, type LogEntry } from "../utils/devLog";
 import { PremiumGateModal } from "../components/PremiumGateModal";
+import { FoodResult, SleepResult, WellnessResult, WorkoutResult } from "../components/camera";
 
 function getPhotoErrorMessage(e: unknown, t: (key: string) => string): string {
   const msg = e instanceof Error ? e.message : String(e);
@@ -65,60 +65,6 @@ function getPhotoErrorMessage(e: unknown, t: (key: string) => string): string {
   return msg || t("camera.errorGeneric");
 }
 
-function SleepDataLines({ data }: { data: SleepExtractedData }) {
-  const lines: string[] = [];
-  if (data.date != null) lines.push(`Date: ${data.date}`);
-  if (data.sleep_periods?.length) {
-    data.sleep_periods.forEach((p) => lines.push(`Period: ${p}`));
-  }
-  if (data.bedtime != null || data.wake_time != null) {
-    lines.push([data.bedtime, data.wake_time].filter(Boolean).join(" → "));
-  }
-  if (data.sleep_hours != null) lines.push(`Sleep: ${data.sleep_hours}h`);
-  if (data.actual_sleep_hours != null) lines.push(`Actual sleep: ${data.actual_sleep_hours}h`);
-  if (data.sleep_minutes != null && data.sleep_hours == null) lines.push(`Sleep: ${data.sleep_minutes} min`);
-  if (data.time_in_bed_min != null) lines.push(`Time in bed: ${data.time_in_bed_min} min`);
-  if (data.quality_score != null) {
-    const delta = data.score_delta != null ? ` (${data.score_delta >= 0 ? "+" : ""}${data.score_delta})` : "";
-    lines.push(`Quality: ${data.quality_score}${delta}`);
-  }
-  if (data.efficiency_pct != null) lines.push(`Efficiency: ${data.efficiency_pct}%`);
-  if (data.deep_sleep_min != null) lines.push(`Deep: ${data.deep_sleep_min} min`);
-  if (data.rem_min != null) lines.push(`REM: ${data.rem_min} min`);
-  if (data.light_sleep_min != null) lines.push(`Light: ${data.light_sleep_min} min`);
-  if (data.awake_min != null) lines.push(`Awake: ${data.awake_min} min`);
-  if (data.latency_min != null) lines.push(`Latency: ${data.latency_min} min`);
-  if (data.awakenings != null) lines.push(`Awakenings: ${data.awakenings}`);
-  if (data.rest_min != null) lines.push(`Rest: ${data.rest_min} min`);
-  if (data.factor_ratings && Object.keys(data.factor_ratings).length > 0) {
-    const factors = Object.entries(data.factor_ratings)
-      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
-      .join(" · ");
-    lines.push(`Factors: ${factors}`);
-  }
-  if (data.sleep_phases?.length) {
-    lines.push(`Phases: ${data.sleep_phases.length} segments`);
-    data.sleep_phases.slice(0, 8).forEach((seg, i) => {
-      lines.push(`  ${seg.start}–${seg.end} ${seg.phase}`);
-    });
-    if (data.sleep_phases.length > 8) {
-      lines.push(`  … +${data.sleep_phases.length - 8} more`);
-    }
-  }
-  if (data.source_app != null) lines.push(`Source: ${data.source_app}`);
-  if (data.raw_notes != null) lines.push(data.raw_notes);
-  if (lines.length === 0) return <Text style={styles.hint}>No metrics extracted.</Text>;
-  return (
-    <View style={styles.sleepLines}>
-      {lines.map((line, i) => (
-        <Text key={i} style={styles.sleepLine}>
-          {line}
-        </Text>
-      ))}
-    </View>
-  );
-}
-
 export function CameraScreen({
   onClose,
   onSaved,
@@ -139,22 +85,23 @@ export function CameraScreen({
   const loadingStageIndex = useLoadingStages(loading, 3, 1600);
   const [saving, setSaving] = useState(false);
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(null);
-  const [photoResult, setPhotoResult] = useState<
-    | { type: "food"; food: NutritionResult }
-    | { type: "sleep"; sleep: SleepExtractionResponse }
-    | { type: "wellness"; wellness: WellnessPhotoResult }
-    | { type: "workout"; workout: WorkoutPhotoResult }
-    | null
-  >(null);
+  const [photoResult, setPhotoResult] = useState<PhotoAnalyzeResponse | null>(null);
   const [selectedMealType, setSelectedMealType] = useState<string>("other");
-  const [editedFood, setEditedFood] = useState<{
-    name: string;
-    portion_grams: number;
-    calories: number;
-    protein_g: number;
-    fat_g: number;
-    carbs_g: number;
-  } | null>(null);
+  const [editedFood, setEditedFood] = useState<EditableNutritionFields | null>(null);
+
+  const updateEditedFoodField = (
+    field: keyof EditableNutritionFields,
+    value: string | number
+  ) => {
+    setEditedFood((prev) =>
+      prev
+        ? {
+            ...prev,
+            [field]: field === "name" ? String(value) : Number(value) || 0,
+          }
+        : null
+    );
+  };
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [premiumGateVisible, setPremiumGateVisible] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
@@ -565,282 +512,70 @@ export function CameraScreen({
         )}
 
         {photoResult?.type === "food" && !loading && (
-          <View style={[styles.result, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
-            {selectedPhotoUri ? (
-              <View style={styles.photoThumbnailWrap}>
-                {!imageLoaded && (
-                  <View style={styles.photoPlaceholder}>
-                    <ActivityIndicator size="small" color="#64748b" />
-                  </View>
-                )}
-                <Image
-                  source={{ uri: selectedPhotoUri }}
-                  style={styles.photoThumbnail}
-                  resizeMode="cover"
-                  onLoadEnd={() => setImageLoaded(true)}
-                />
-              </View>
-            ) : null}
-            {isPreview() && editedFood ? (
-              <>
-                <Text style={styles.editLabel}>{t("camera.nameLabel")}</Text>
-                <TextInput
-                  style={styles.editInput}
-                  value={editedFood.name}
-                  onChangeText={(txt) => setEditedFood((p) => (p ? { ...p, name: txt } : null))}
-                  placeholder={t("camera.dishPlaceholder")}
-                  placeholderTextColor="#64748b"
-                />
-                <View style={styles.editRow}>
-                  <View style={styles.editHalf}>
-                    <Text style={styles.editLabel}>{t("nutrition.caloriesLabel")}</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={String(editedFood.calories)}
-                      onChangeText={(val) => setEditedFood((p) => (p ? { ...p, calories: Number(val) || 0 } : null))}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#64748b"
-                    />
-                  </View>
-                  <View style={styles.editHalf}>
-                    <Text style={styles.editLabel}>{t("nutrition.portionG")}</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={String(editedFood.portion_grams)}
-                      onChangeText={(val) => setEditedFood((p) => (p ? { ...p, portion_grams: Number(val) || 0 } : null))}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#64748b"
-                    />
-                  </View>
-                </View>
-                <View style={styles.editRow}>
-                  <View style={styles.editThird}><Text style={styles.editLabel}>{t("nutrition.proteinShort")}</Text><TextInput style={styles.editInput} value={String(editedFood.protein_g)} onChangeText={(val) => setEditedFood((p) => (p ? { ...p, protein_g: Number(val) || 0 } : null))} keyboardType="numeric" placeholder="0" placeholderTextColor="#64748b" /></View>
-                  <View style={styles.editThird}><Text style={styles.editLabel}>{t("nutrition.fatShort")}</Text><TextInput style={styles.editInput} value={String(editedFood.fat_g)} onChangeText={(val) => setEditedFood((p) => (p ? { ...p, fat_g: Number(val) || 0 } : null))} keyboardType="numeric" placeholder="0" placeholderTextColor="#64748b" /></View>
-                  <View style={styles.editThird}><Text style={styles.editLabel}>{t("nutrition.carbsShort")}</Text><TextInput style={styles.editInput} value={String(editedFood.carbs_g)} onChangeText={(val) => setEditedFood((p) => (p ? { ...p, carbs_g: Number(val) || 0 } : null))} keyboardType="numeric" placeholder="0" placeholderTextColor="#64748b" /></View>
-                </View>
-                <Text style={styles.editLabel}>{t("camera.mealTypeLabel")}</Text>
-                <View style={styles.mealTypeRow}>
-                  {MEAL_TYPES.map(({ value, label }) => (
-                    <TouchableOpacity
-                      key={value}
-                      style={[styles.mealTypeBtn, selectedMealType === value && styles.mealTypeBtnActive]}
-                      onPress={() => setSelectedMealType(value)}
-                    >
-                      <Text style={[styles.mealTypeBtnText, selectedMealType === value && styles.mealTypeBtnTextActive]}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TouchableOpacity
-                  style={[styles.reanalyzeBtn, reanalyzing && styles.reanalyzeBtnDisabled]}
-                  onPress={handleReanalyze}
-                  disabled={reanalyzing || saving}
-                >
-                  {reanalyzing ? (
-                    <ActivityIndicator size="small" color="#0f172a" />
-                  ) : (
-                    <Text style={styles.reanalyzeBtnText}>{t("camera.reanalyze")}</Text>
-                  )}
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.resultName}>{photoResult.food.name}</Text>
-                <Text style={styles.resultMacros}>
-                  {photoResult.food.calories} {t("nutrition.kcal")} · {t("nutrition.proteinShort")} {photoResult.food.protein_g}{t("nutrition.grams")} · {t("nutrition.fatShort")} {photoResult.food.fat_g}{t("nutrition.grams")} · {t("nutrition.carbsShort")} {photoResult.food.carbs_g}{t("nutrition.grams")}
-                </Text>
-                <Text style={styles.hint}>{t("camera.portionLabel")}: {photoResult.food.portion_grams}{t("nutrition.grams")}</Text>
-              </>
-            )}
-            {photoResult.food.extended_nutrients && Object.keys(photoResult.food.extended_nutrients).length > 0 ? (
-              <>
-                <Text style={styles.editLabel}>{t("nutrition.micronutrients")}</Text>
-                <View style={styles.micronutrientsBlock}>
-                  {Object.entries(photoResult.food.extended_nutrients).map(([key, value]) => {
-                    const labelKey = `nutrition.micronutrientLabels.${key}`;
-                    const label = t(labelKey) !== labelKey ? t(labelKey) : key;
-                    return (
-                      <View key={key} style={styles.microRow}>
-                        <Text style={styles.microLabel}>{label}</Text>
-                        <Text style={styles.microValue}>{typeof value === "number" ? Math.round(value * 10) / 10 : value}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
-            <Text style={styles.resultWhere}>
-              {isPreview() ? t("camera.checkAndSave") : t("camera.savedClose")}
-            </Text>
-            {isPreview() ? (
-              <View style={styles.previewActions}>
-                <TouchableOpacity
-                  style={[styles.doneBtn, styles.saveBtn]}
-                  onPress={handleSave}
-                  disabled={saving}
-                >
-                  <Text style={styles.doneBtnText}>{saving ? "…" : t("common.save")}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                  <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-                <Text style={styles.doneBtnText}>{t("camera.done")}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <FoodResult
+            previewUri={selectedPhotoUri}
+            imageLoaded={imageLoaded}
+            onImageLoad={() => setImageLoaded(true)}
+            food={photoResult.food}
+            editedFood={editedFood}
+            updateField={updateEditedFoodField}
+            selectedMealType={selectedMealType}
+            onMealTypeChange={setSelectedMealType}
+            mealTypes={MEAL_TYPES}
+            isPreview={isPreview()}
+            reanalyzing={reanalyzing}
+            onReanalyze={handleReanalyze}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            onClose={onClose}
+            saving={saving}
+            t={t}
+            styles={styles}
+          />
         )}
 
         {photoResult?.type === "sleep" && !loading && (
-          <View style={[styles.result, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
-            {selectedPhotoUri ? (
-              <View style={styles.photoThumbnailWrap}>
-                {!imageLoaded && (
-                  <View style={styles.photoPlaceholder}>
-                    <ActivityIndicator size="small" color="#64748b" />
-                  </View>
-                )}
-                <Image
-                  source={{ uri: selectedPhotoUri }}
-                  style={styles.photoThumbnail}
-                  resizeMode="cover"
-                  onLoadEnd={() => setImageLoaded(true)}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.resultName}>{t("camera.sleepRecognized")}</Text>
-            <SleepDataLines data={photoResult.sleep.extracted_data} />
-            <Text style={styles.resultWhere}>
-              {isPreview() ? t("camera.checkAndSave") : t("camera.savedClose")}
-            </Text>
-            {isPreview() ? (
-              <View style={styles.previewActions}>
-                <TouchableOpacity
-                  style={[styles.doneBtn, styles.saveBtn]}
-                  onPress={handleSave}
-                  disabled={saving}
-                >
-                  <Text style={styles.doneBtnText}>{saving ? "…" : t("common.save")}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                  <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-                <Text style={styles.doneBtnText}>{t("camera.done")}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <SleepResult
+            previewUri={selectedPhotoUri}
+            imageLoaded={imageLoaded}
+            onImageLoad={() => setImageLoaded(true)}
+            sleep={photoResult.sleep}
+            isPreview={isPreview()}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            onClose={onClose}
+            saving={saving}
+            t={t}
+            styles={styles}
+          />
         )}
 
         {photoResult?.type === "wellness" && !loading && (
-          <View style={[styles.result, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
-            {selectedPhotoUri ? (
-              <View style={styles.photoThumbnailWrap}>
-                {!imageLoaded && (
-                  <View style={styles.photoPlaceholder}>
-                    <ActivityIndicator size="small" color="#64748b" />
-                  </View>
-                )}
-                <Image
-                  source={{ uri: selectedPhotoUri }}
-                  style={styles.photoThumbnail}
-                  resizeMode="cover"
-                  onLoadEnd={() => setImageLoaded(true)}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.resultName}>{t("camera.wellnessRecognized")}</Text>
-            <View style={styles.sleepLines}>
-              {photoResult.wellness.rhr != null && (
-                <Text style={styles.sleepLine}>{t("camera.rhrLabel")}: {photoResult.wellness.rhr}</Text>
-              )}
-              {photoResult.wellness.hrv != null && (
-                <Text style={styles.sleepLine}>HRV: {photoResult.wellness.hrv}</Text>
-              )}
-              {photoResult.wellness.rhr == null && photoResult.wellness.hrv == null && (
-                <Text style={styles.hint}>{t("camera.noRhrHrv")}</Text>
-              )}
-            </View>
-            <Text style={styles.resultWhere}>{t("camera.checkAndSave")}</Text>
-            <View style={styles.previewActions}>
-              <TouchableOpacity
-                style={[styles.doneBtn, styles.saveBtn]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                <Text style={styles.doneBtnText}>{saving ? "…" : t("common.save")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <WellnessResult
+            previewUri={selectedPhotoUri}
+            imageLoaded={imageLoaded}
+            onImageLoad={() => setImageLoaded(true)}
+            wellness={photoResult.wellness}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            saving={saving}
+            t={t}
+            styles={styles}
+          />
         )}
 
         {photoResult?.type === "workout" && !loading && (
-          <View style={[styles.result, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
-            {selectedPhotoUri ? (
-              <View style={styles.photoThumbnailWrap}>
-                {!imageLoaded && (
-                  <View style={styles.photoPlaceholder}>
-                    <ActivityIndicator size="small" color="#64748b" />
-                  </View>
-                )}
-                <Image
-                  source={{ uri: selectedPhotoUri }}
-                  style={styles.photoThumbnail}
-                  resizeMode="cover"
-                  onLoadEnd={() => setImageLoaded(true)}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.resultName}>{t("camera.workoutRecognized")}</Text>
-            <View style={styles.sleepLines}>
-              {photoResult.workout.name && (
-                <Text style={styles.sleepLine}>{photoResult.workout.name}</Text>
-              )}
-              {photoResult.workout.date && (
-                <Text style={styles.sleepLine}>{t("dashboard.addWorkoutDateLabel")}: {photoResult.workout.date}</Text>
-              )}
-              {photoResult.workout.sport_type && (
-                <Text style={styles.sleepLine}>{t("dashboard.addWorkoutType")}: {photoResult.workout.sport_type}</Text>
-              )}
-              {photoResult.workout.duration_sec != null && (
-                <Text style={styles.sleepLine}>
-                  {t("dashboard.addWorkoutDurationMin")}: {Math.round(photoResult.workout.duration_sec / 60)} min
-                </Text>
-              )}
-              {photoResult.workout.distance_m != null && (
-                <Text style={styles.sleepLine}>
-                  {t("dashboard.addWorkoutDistanceKm")}: {(photoResult.workout.distance_m / 1000).toFixed(2)} km
-                </Text>
-              )}
-              {photoResult.workout.tss != null && (
-                <Text style={styles.sleepLine}>TSS: {Math.round(photoResult.workout.tss)}</Text>
-              )}
-              {photoResult.workout.notes && (
-                <Text style={styles.sleepLine}>{photoResult.workout.notes}</Text>
-              )}
-            </View>
-            <Text style={styles.resultWhere}>{t("camera.checkAndSave")}</Text>
-            <View style={styles.previewActions}>
-              <TouchableOpacity
-                style={[styles.doneBtn, styles.saveBtn]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                <Text style={styles.doneBtnText}>{saving ? "…" : t("common.save")}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
-                <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <WorkoutResult
+            previewUri={selectedPhotoUri}
+            imageLoaded={imageLoaded}
+            onImageLoad={() => setImageLoaded(true)}
+            workout={photoResult.workout}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            saving={saving}
+            t={t}
+            styles={styles}
+          />
         )}
 
         {!photoResult && !loading && (
@@ -849,17 +584,17 @@ export function CameraScreen({
               {t("camera.selectPhotoHint")}
             </Text>
             <View style={styles.actions}>
-              <TouchableOpacity style={[styles.button, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]} onPress={takePhoto}>
+              <TouchableOpacity style={[styles.button, Platform.OS === "web" && ({ backdropFilter: "blur(20px)" } as object)]} onPress={takePhoto}>
                 <Text style={styles.buttonIcon}>📷</Text>
                 <Text style={styles.buttonText}>{t("camera.takePhoto")}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]} onPress={pickImage}>
+              <TouchableOpacity style={[styles.button, Platform.OS === "web" && ({ backdropFilter: "blur(20px)" } as object)]} onPress={pickImage}>
                 <Text style={styles.buttonIcon}>🖼️</Text>
                 <Text style={styles.buttonText}>{t("camera.selectFromGallery")}</Text>
               </TouchableOpacity>
               {isDevLogEnabled() && (
                 <TouchableOpacity
-                  style={[styles.button, styles.buttonTest, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}
+                  style={[styles.button, styles.buttonTest, Platform.OS === "web" && ({ backdropFilter: "blur(20px)" } as object)]}
                   onPress={loadTestImage}
                 >
                   <Text style={styles.buttonIcon}>🧪</Text>
