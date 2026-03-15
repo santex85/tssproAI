@@ -173,7 +173,7 @@ async def intervals_oauth_callback(
                 r = await session.execute(
                     select(IntervalsCredentials).where(IntervalsCredentials.athlete_id == athlete_id)
                 )
-                creds = r.scalar_one_or_none()
+                creds = r.scalars().first()
                 has_user = creds is not None
                 user_id_for_pending = creds.user_id if creds else None
             try:
@@ -310,7 +310,7 @@ async def intervals_webhook(
         r = await session.execute(
             select(IntervalsCredentials).where(IntervalsCredentials.athlete_id == athlete_id)
         )
-        creds = r.scalar_one_or_none()
+        creds = r.scalars().first()
     if not creds:
         logging.warning("Intervals webhook: no credentials for athlete_id=%s", athlete_id)
         return {"ok": True}
