@@ -1371,6 +1371,7 @@ export function DashboardScreen({
   refreshNutritionTrigger = 0,
   refreshSleepTrigger = 0,
   refreshWellnessTrigger = 0,
+  refreshWorkoutTrigger = 0,
   lastSavedSleep = null,
   onClearLastSavedSleep,
   lastSavedWellness = null,
@@ -1388,6 +1389,7 @@ export function DashboardScreen({
   refreshNutritionTrigger?: number;
   refreshSleepTrigger?: number;
   refreshWellnessTrigger?: number;
+  refreshWorkoutTrigger?: number;
   lastSavedSleep?: SleepExtractionResponse | null;
   onClearLastSavedSleep?: () => void;
   lastSavedWellness?: { date: string; rhr?: number | null; hrv?: number | null } | null;
@@ -1546,7 +1548,7 @@ export function DashboardScreen({
 
   useEffect(() => {
     load();
-  }, [load, refreshNutritionTrigger, refreshSleepTrigger, refreshWellnessTrigger]);
+  }, [load, refreshNutritionTrigger, refreshSleepTrigger, refreshWellnessTrigger, refreshWorkoutTrigger]);
 
   const isFirstFocus = useRef(true);
   useFocusEffect(

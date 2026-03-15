@@ -99,6 +99,7 @@ function AppContent() {
   const [refreshNutritionTrigger, setRefreshNutritionTrigger] = useState(0);
   const [refreshSleepTrigger, setRefreshSleepTrigger] = useState(0);
   const [refreshWellnessTrigger, setRefreshWellnessTrigger] = useState(0);
+  const [refreshWorkoutTrigger, setRefreshWorkoutTrigger] = useState(0);
   const [lastSavedSleep, setLastSavedSleep] = useState<SleepExtractionResponse | null>(null);
   const [lastSavedWellness, setLastSavedWellness] = useState<{ date: string } & WellnessPhotoResult | null>(null);
   const [intervalsPendingKey, setIntervalsPendingKey] = useState<string | null>(null);
@@ -408,6 +409,7 @@ function AppContent() {
                   refreshNutritionTrigger={refreshNutritionTrigger}
                   refreshSleepTrigger={refreshSleepTrigger}
                   refreshWellnessTrigger={refreshWellnessTrigger}
+                  refreshWorkoutTrigger={refreshWorkoutTrigger}
                   lastSavedSleep={lastSavedSleep}
                   onClearLastSavedSleep={() => setLastSavedSleep(null)}
                   lastSavedWellness={lastSavedWellness}
@@ -469,6 +471,10 @@ function AppContent() {
                 setLastSavedWellness({ date, ...wellness });
                 setRefreshSleepTrigger((t) => t + 1);
                 setRefreshWellnessTrigger((t) => t + 1);
+                setCameraVisible(false);
+              }}
+              onWorkoutSaved={() => {
+                setRefreshWorkoutTrigger((t) => t + 1);
                 setCameraVisible(false);
               }}
             />
