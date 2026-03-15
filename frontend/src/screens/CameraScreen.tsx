@@ -21,10 +21,12 @@ import {
   analyzeNutritionFromText,
   saveSleepFromPreview,
   createOrUpdateWellness,
+  createWorkout,
   type NutritionResult,
   type SleepExtractionResponse,
   type SleepExtractedData,
   type WellnessPhotoResult,
+  type WorkoutPhotoResult,
 } from "../api/client";
 import { useTranslation } from "../i18n";
 import { useLoadingStages } from "../hooks/useLoadingStages";
@@ -122,12 +124,14 @@ export function CameraScreen({
   onSaved,
   onSleepSaved,
   onWellnessSaved,
+  onWorkoutSaved,
   onOpenPricing,
 }: {
   onClose: () => void;
   onSaved?: (result: NutritionResult) => void;
   onSleepSaved?: (result: SleepExtractionResponse) => void;
   onWellnessSaved?: (wellness: WellnessPhotoResult, date: string) => void;
+  onWorkoutSaved?: () => void;
   onOpenPricing?: () => void;
 }) {
   const { t } = useTranslation();
@@ -139,6 +143,7 @@ export function CameraScreen({
     | { type: "food"; food: NutritionResult }
     | { type: "sleep"; sleep: SleepExtractionResponse }
     | { type: "wellness"; wellness: WellnessPhotoResult }
+    | { type: "workout"; workout: WorkoutPhotoResult }
     | null
   >(null);
   const [selectedMealType, setSelectedMealType] = useState<string>("other");
@@ -159,6 +164,7 @@ export function CameraScreen({
     if (!photoResult) return false;
     if (photoResult.type === "food") return (photoResult.food.id ?? 0) === 0;
     if (photoResult.type === "wellness") return true;
+    if (photoResult.type === "workout") return true;
     return (photoResult.sleep.id ?? 0) === 0;
   };
 
@@ -369,6 +375,20 @@ export function CameraScreen({
           onSleepSaved?.(saved);
         }
         Alert.alert(t("common.alerts.done"), t("camera.sleepSaved"));
+      } else if (photoResult.type === "workout") {
+        const w = photoResult.workout;
+        const dateStr = w.date ?? new Date().toISOString().slice(0, 10);
+        await createWorkout({
+          start_date: `${dateStr}T12:00:00.000Z`,
+          name: w.name?.trim() || undefined,
+          type: w.sport_type || undefined,
+          duration_sec: w.duration_sec ?? undefined,
+          distance_m: w.distance_m ?? undefined,
+          tss: w.tss ?? undefined,
+          notes: w.notes?.trim() || undefined,
+        });
+        onWorkoutSaved?.();
+        Alert.alert(t("common.alerts.done"), t("camera.workoutSaved"));
       }
       setPhotoResult(null);
       setSelectedPhotoUri(null);
@@ -744,6 +764,67 @@ export function CameraScreen({
               )}
               {photoResult.wellness.rhr == null && photoResult.wellness.hrv == null && (
                 <Text style={styles.hint}>{t("camera.noRhrHrv")}</Text>
+              )}
+            </View>
+            <Text style={styles.resultWhere}>{t("camera.checkAndSave")}</Text>
+            <View style={styles.previewActions}>
+              <TouchableOpacity
+                style={[styles.doneBtn, styles.saveBtn]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                <Text style={styles.doneBtnText}>{saving ? "…" : t("common.save")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} disabled={saving}>
+                <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {photoResult?.type === "workout" && !loading && (
+          <View style={[styles.result, Platform.OS === "web" && { backdropFilter: "blur(20px)" }]}>
+            {selectedPhotoUri ? (
+              <View style={styles.photoThumbnailWrap}>
+                {!imageLoaded && (
+                  <View style={styles.photoPlaceholder}>
+                    <ActivityIndicator size="small" color="#64748b" />
+                  </View>
+                )}
+                <Image
+                  source={{ uri: selectedPhotoUri }}
+                  style={styles.photoThumbnail}
+                  resizeMode="cover"
+                  onLoadEnd={() => setImageLoaded(true)}
+                />
+              </View>
+            ) : null}
+            <Text style={styles.resultName}>{t("camera.workoutRecognized")}</Text>
+            <View style={styles.sleepLines}>
+              {photoResult.workout.name && (
+                <Text style={styles.sleepLine}>{photoResult.workout.name}</Text>
+              )}
+              {photoResult.workout.date && (
+                <Text style={styles.sleepLine}>{t("dashboard.addWorkoutDateLabel")}: {photoResult.workout.date}</Text>
+              )}
+              {photoResult.workout.sport_type && (
+                <Text style={styles.sleepLine}>{t("dashboard.addWorkoutType")}: {photoResult.workout.sport_type}</Text>
+              )}
+              {photoResult.workout.duration_sec != null && (
+                <Text style={styles.sleepLine}>
+                  {t("dashboard.addWorkoutDurationMin")}: {Math.round(photoResult.workout.duration_sec / 60)} min
+                </Text>
+              )}
+              {photoResult.workout.distance_m != null && (
+                <Text style={styles.sleepLine}>
+                  {t("dashboard.addWorkoutDistanceKm")}: {(photoResult.workout.distance_m / 1000).toFixed(2)} km
+                </Text>
+              )}
+              {photoResult.workout.tss != null && (
+                <Text style={styles.sleepLine}>TSS: {Math.round(photoResult.workout.tss)}</Text>
+              )}
+              {photoResult.workout.notes && (
+                <Text style={styles.sleepLine}>{photoResult.workout.notes}</Text>
               )}
             </View>
             <Text style={styles.resultWhere}>{t("camera.checkAndSave")}</Text>

@@ -368,6 +368,8 @@ export const th = {
     portionLabel: "ส่วน",
     sleepRecognized: "จดจำข้อมูลการนอนแล้ว",
     wellnessRecognized: "จดจำชีพจรและ HRV แล้ว",
+    workoutRecognized: "จดจำการฝึกซ้อมแล้ว",
+    workoutSaved: "บันทึกการฝึกซ้อมแล้ว",
     rhrLabel: "อัตราหัวใจขณะพัก (RHR)",
     noRhrHrv: "ดึง RHR หรือ HRV ไม่ได้",
     selectPhotoHint: "เลือกรูป — เราจะตรวจว่าเป็นอาหาร การนอน หรือชีพจร/HRV แล้วประมวลผล",

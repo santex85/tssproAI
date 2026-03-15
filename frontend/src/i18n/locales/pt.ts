@@ -368,6 +368,8 @@ export const pt = {
     portionLabel: "Porção",
     sleepRecognized: "Dados de sono reconhecidos",
     wellnessRecognized: "Pulso e HRV reconhecidos",
+    workoutRecognized: "Treino reconhecido",
+    workoutSaved: "Treino salvo.",
     rhrLabel: "Frequência cardíaca em repouso (RHR)",
     noRhrHrv: "Não foi possível extrair RHR ou HRV.",
     selectPhotoHint: "Selecione uma foto — vamos detetar comida, sono ou pulso/HRV e processá-la.",

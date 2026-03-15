@@ -330,6 +330,9 @@ function AppContent() {
                 setRefreshWellnessTrigger((t) => t + 1);
                 setCameraVisible(false);
               }}
+              onWorkoutSaved={() => {
+                setCameraVisible(false);
+              }}
             />
           </View>
         )}
