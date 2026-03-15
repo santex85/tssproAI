@@ -457,6 +457,10 @@ export const th = {
     targetRaceDate: "วันแข่งขัน",
     targetRaceDatePlaceholder: "YYYY-MM-DD",
     daysToRace: "อีก {days} วันถึงวันเริ่ม",
+    isAthlete: "ประเภทผู้ใช้",
+    userTypeAthlete: "นักกีฬา (ฝึกตามแผน)",
+    userTypeRegular: "ผู้ใช้ทั่วไป",
+    userTypeAuto: "อัตโนมัติ",
   },
   wellnessScreen: {
     title: "การนอนและสุขภาพ",

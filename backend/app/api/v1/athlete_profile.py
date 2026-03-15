@@ -40,6 +40,7 @@ def _profile_response(profile: AthleteProfile | None, user: User) -> dict:
             "target_race_date": None,
             "target_race_name": None,
             "days_to_race": None,
+            "is_athlete": None,
         }
     nutrition_goals = None
     if (
@@ -72,6 +73,7 @@ def _profile_response(profile: AthleteProfile | None, user: User) -> dict:
         "target_race_date": profile.target_race_date.isoformat() if profile.target_race_date else None,
         "target_race_name": profile.target_race_name,
         "days_to_race": days_to_race,
+        "is_athlete": profile.is_athlete,
     }
 
 
@@ -86,6 +88,7 @@ class AthleteProfileUpdate(BaseModel):
     carbs_goal: float | None = Field(None, ge=0, le=1000, description="Daily carbs goal (g)")
     target_race_date: date | None = Field(None, description="Target race date (YYYY-MM-DD)")
     target_race_name: str | None = Field(None, max_length=512, description="Target race name")
+    is_athlete: bool | None = Field(None, description="Explicit user type: athlete vs regular (null = auto)")
     locale: str | None = Field(None, description="User language preference (ru, en)")
     timezone: str | None = Field(None, max_length=50, description="IANA timezone, e.g. Europe/Moscow")
 
@@ -144,6 +147,8 @@ async def update_athlete_profile(
         profile.target_race_date = body.target_race_date
     if "target_race_name" in body.model_fields_set:
         profile.target_race_name = body.target_race_name
+    if "is_athlete" in body.model_fields_set:
+        profile.is_athlete = body.is_athlete
     if body.locale is not None:
         from app.api.deps import SUPPORTED_LOCALES, _normalize_locale
         normalized = _normalize_locale(body.locale)

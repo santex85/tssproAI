@@ -69,7 +69,7 @@ ORCHESTRATOR_PUSH_TITLE_BY_LOCALE = {
 
 async def scheduled_orchestrator_run(cron_hour: int | None = None):
     """Run orchestrator (daily decision) for every user at configured hours (parallel with semaphore).
-    cron_hour: when run from cron, the hour that triggered the job (0-23) is passed so orchestrator uses morning/day/evening logic."""
+    cron_hour: deprecated, kept for backward compatibility; orchestrator computes datetime in each user's timezone."""
     if not await try_acquire_cron_lock(LOCK_ORCHESTRATOR, ttl_seconds=600):
         logger.info("Scheduler: orchestrator_run skipped (another worker holds the lock)")
         return
@@ -94,9 +94,7 @@ async def scheduled_orchestrator_run(cron_hour: int | None = None):
     async def run_for_user(uid: int, locale: str, is_premium: bool) -> None:
         async with sem:
             async with async_session_maker() as session:
-                result = await run_daily_decision(
-                    session, uid, date.today(), locale=locale, client_local_hour=cron_hour
-                )
+                result = await run_daily_decision(session, uid, locale=locale)
                 await session.commit()
                 if is_premium:
                     summary = f"{result.decision.value}: {(result.reason or '')[:80]}"

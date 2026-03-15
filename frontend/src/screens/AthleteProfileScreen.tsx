@@ -110,6 +110,7 @@ export function AthleteProfileScreen({
   const [carbsGoal, setCarbsGoal] = useState("");
   const [targetRaceName, setTargetRaceName] = useState("");
   const [targetRaceDate, setTargetRaceDate] = useState("");
+  const [isAthlete, setIsAthlete] = useState<boolean | null>(null);
   const [nutritionInputMode, setNutritionInputMode] = useState<"calories" | "bju">("calories");
   const [premiumToggling, setPremiumToggling] = useState(false);
   const [subscription, setSubscription] = useState<Awaited<ReturnType<typeof getSubscription>> | null>(null);
@@ -135,6 +136,7 @@ export function AthleteProfileScreen({
       setCarbsGoal(g?.carbs_goal != null ? String(g.carbs_goal) : String(DEFAULT_CARBS_GOAL));
       setTargetRaceName(p.target_race_name ?? "");
       setTargetRaceDate(p.target_race_date ?? "");
+      setIsAthlete(p.is_athlete ?? null);
     } catch {
       setProfile(null);
     } finally {
@@ -160,6 +162,7 @@ export function AthleteProfileScreen({
         carbs_goal?: number;
         target_race_date?: string | null;
         target_race_name?: string | null;
+        is_athlete?: boolean | null;
       } = {};
       if (weight.trim() !== "") {
         const v = parseFloat(weight);
@@ -217,6 +220,7 @@ export function AthleteProfileScreen({
       } else {
         payload.target_race_date = null;
       }
+      payload.is_athlete = isAthlete;
       const updated = await updateAthleteProfile(payload);
       setProfile(updated);
       setEditing(false);
@@ -317,6 +321,90 @@ export function AthleteProfileScreen({
             )}
           </View>
         ) : null}
+
+        <View style={styles.userTypeSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("athleteProfile.isAthlete")}</Text>
+          <View style={styles.segmentRow}>
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                { backgroundColor: colors.glassBg, borderColor: colors.glassBorder },
+                isAthlete === true && { backgroundColor: colors.primary },
+              ]}
+              onPress={async () => {
+                if (isAthlete === true) return;
+                setIsAthlete(true);
+                try {
+                  const updated = await updateAthleteProfile({ is_athlete: true });
+                  setProfile(updated);
+                } catch (e) {
+                  Alert.alert(t("common.error"), getErrorMessage(e));
+                  setIsAthlete(profile?.is_athlete ?? null);
+                }
+              }}
+            >
+              <Text style={[
+                styles.segmentBtnText,
+                { color: colors.textMuted },
+                isAthlete === true && { color: colors.primaryText, fontWeight: "600" as const },
+              ]}>
+                {t("athleteProfile.userTypeAthlete")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                { backgroundColor: colors.glassBg, borderColor: colors.glassBorder },
+                isAthlete === false && { backgroundColor: colors.primary },
+              ]}
+              onPress={async () => {
+                if (isAthlete === false) return;
+                setIsAthlete(false);
+                try {
+                  const updated = await updateAthleteProfile({ is_athlete: false });
+                  setProfile(updated);
+                } catch (e) {
+                  Alert.alert(t("common.error"), getErrorMessage(e));
+                  setIsAthlete(profile?.is_athlete ?? null);
+                }
+              }}
+            >
+              <Text style={[
+                styles.segmentBtnText,
+                { color: colors.textMuted },
+                isAthlete === false && { color: colors.primaryText, fontWeight: "600" as const },
+              ]}>
+                {t("athleteProfile.userTypeRegular")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.segmentBtn,
+                { backgroundColor: colors.glassBg, borderColor: colors.glassBorder },
+                isAthlete === null && { backgroundColor: colors.primary },
+              ]}
+              onPress={async () => {
+                if (isAthlete === null) return;
+                setIsAthlete(null);
+                try {
+                  const updated = await updateAthleteProfile({ is_athlete: null });
+                  setProfile(updated);
+                } catch (e) {
+                  Alert.alert(t("common.error"), getErrorMessage(e));
+                  setIsAthlete(profile?.is_athlete ?? null);
+                }
+              }}
+            >
+              <Text style={[
+                styles.segmentBtnText,
+                { color: colors.textMuted },
+                isAthlete === null && { color: colors.primaryText, fontWeight: "600" as const },
+              ]}>
+                {t("athleteProfile.userTypeAuto")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         <View style={styles.languageSection}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("settings.language")}</Text>
@@ -727,6 +815,7 @@ const styles = StyleSheet.create({
   value: { fontSize: 17, fontWeight: "600" },
   valueReadOnly: { fontSize: 16, marginTop: 6 },
   source: { fontSize: 12, marginLeft: 6 },
+  userTypeSection: { marginTop: 20, marginBottom: 8 },
   segmentRow: { flexDirection: "row", gap: 8, marginTop: 8, marginBottom: 4 },
   segmentBtn: {
     flex: 1,

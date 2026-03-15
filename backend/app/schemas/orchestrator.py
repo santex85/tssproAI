@@ -10,6 +10,7 @@ class Decision(str, Enum):
     GO = "Go"
     MODIFY = "Modify"
     SKIP = "Skip"
+    ADVICE = "Advice"
 
 
 class ModifiedPlanItem(BaseModel):

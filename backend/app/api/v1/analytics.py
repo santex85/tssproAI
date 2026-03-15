@@ -9,6 +9,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_request_locale, language_for_locale
+from app.services.user_type import resolve_is_athlete
 from app.db.session import get_db
 from app.models.athlete_profile import AthleteProfile
 from app.models.food_log import FoodLog
@@ -383,35 +384,55 @@ async def get_analytics_nutrition(
     }
 
 
-def _insight_instruction(chart_type: str, has_question: bool, locale: str = "ru") -> str:
+def _insight_instruction(chart_type: str, has_question: bool, locale: str = "ru", is_athlete: bool = True) -> str:
     """Return chart-type-specific instruction for the AI insight. Reply in user's language."""
     lang = language_for_locale(locale)
     lang_rule = f"Reply only in {lang}."
     if has_question:
         return f"{lang_rule} Answer briefly in 2–5 bullet points. Use only the numbers from the data; do not invent data."
-    instructions = {
-        "nutrition": (
-            "Analyze the user's nutrition data: macronutrients (calories, protein, fat, carbs) and, if present, "
-            "micronutrients (vitamins and minerals in extended_nutrients, e.g. fiber_g, vitamin_c_mg, iron_mg, "
-            "calcium_mg, vitamin_d_iu). Note any deficiencies, excesses, or imbalances. Give 2–5 short bullet points "
-            "and practical recommendations. In practical recommendations, when relevant, gently favor more plant-based "
-            "options (vegetables, legumes, whole grains, fruits) where appropriate, without being prescriptive or extreme."
-        ),
-        "sleep": (
-            "Analyze sleep and recovery: consistency of sleep hours, trends in RHR and HRV if present. "
-            "Highlight notable patterns (e.g. under-sleeping, recovery trends). Give 2–5 short bullet points "
-            "and one or two practical recommendations."
-        ),
-        "workouts": (
-            "Analyze training data: volume (TSS, duration, distance), load trends (CTL/ATL/TSB if present), "
-            "and consistency. Note any overreaching or recovery needs. Give 2–5 short bullet points and "
-            "practical recommendations."
-        ),
-        "overview": (
-            "Summarize the overview: main stats (sleep, workouts, nutrition, load). Note any notable highs/lows "
-            "and give one or two practical recommendations. Reply in 2–5 short bullet points."
-        ),
-    }
+    if is_athlete:
+        instructions = {
+            "nutrition": (
+                "Analyze the user's nutrition data: macronutrients (calories, protein, fat, carbs) and, if present, "
+                "micronutrients (vitamins and minerals in extended_nutrients, e.g. fiber_g, vitamin_c_mg, iron_mg, "
+                "calcium_mg, vitamin_d_iu). Note any deficiencies, excesses, or imbalances. Give 2–5 short bullet points "
+                "and practical recommendations. In practical recommendations, when relevant, gently favor more plant-based "
+                "options (vegetables, legumes, whole grains, fruits) where appropriate, without being prescriptive or extreme."
+            ),
+            "sleep": (
+                "Analyze sleep and recovery: consistency of sleep hours, trends in RHR and HRV if present. "
+                "Highlight notable patterns (e.g. under-sleeping, recovery trends). Give 2–5 short bullet points "
+                "and one or two practical recommendations."
+            ),
+            "workouts": (
+                "Analyze training data: volume (TSS, duration, distance), load trends (CTL/ATL/TSB if present), "
+                "and consistency. Note any overreaching or recovery needs. Give 2–5 short bullet points and "
+                "practical recommendations."
+            ),
+            "overview": (
+                "Summarize the overview: main stats (sleep, workouts, nutrition, load). Note any notable highs/lows "
+                "and give one or two practical recommendations. Reply in 2–5 short bullet points."
+            ),
+        }
+    else:
+        instructions = {
+            "nutrition": (
+                "Analyze the user's nutrition data: calories, protein, fat, carbs. Note any imbalances. "
+                "Give 2–5 short bullet points and simple recommendations. Use everyday language; avoid diet jargon."
+            ),
+            "sleep": (
+                "Analyze sleep: consistency of sleep hours, trends in RHR and HRV if present. "
+                "Highlight notable patterns. Give 2–5 short bullet points and simple recommendations."
+            ),
+            "workouts": (
+                "Analyze activity data: duration, distance, consistency. Give 2–5 short bullet points and "
+                "simple recommendations. Avoid TSS, CTL, ATL, polarisation jargon."
+            ),
+            "overview": (
+                "Summarize the overview: main stats (sleep, activity, nutrition). Note any notable highs/lows "
+                "and give one or two simple recommendations. Reply in 2–5 short bullet points. Use simple language."
+            ),
+        }
     base = instructions.get(
         chart_type,
         "Summarize what this chart shows: main trends, notable highs/lows, and one or two practical recommendations. "
@@ -468,7 +489,10 @@ async def post_analytics_insight(
             instruction = _insight_instruction_teaser(locale)
         else:
             has_question = bool(body.question and body.question.strip())
-            instruction = _insight_instruction(body.chart_type, has_question, locale)
+            r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user.id))
+            profile = r_prof.scalar_one_or_none()
+            is_athlete = await resolve_is_athlete(session, user.id, profile)
+            instruction = _insight_instruction(body.chart_type, has_question, locale, is_athlete=is_athlete)
 
         prompt = f"""You are a sports and wellness coach. The user is viewing an analytics chart of type "{body.chart_type}".
 

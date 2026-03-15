@@ -56,7 +56,11 @@ Output ONLY a single JSON object with exactly these fields:
 When type is "food", set "food" to: { name, portion_grams, calories, protein_g, fat_g, carbs_g }. All numbers non-negative.
 When type is "sleep", set "sleep" to: { date, sleep_hours, sleep_minutes, actual_sleep_hours, actual_sleep_minutes, time_in_bed_min, quality_score, score_delta, efficiency_pct, rest_min, bedtime, wake_time, sleep_periods, deep_sleep_min, rem_min, light_sleep_min, awake_min, factor_ratings, sleep_phases, latency_min, awakenings, source_app, raw_notes, rhr, hrv }. Do NOT round durations to whole hours. Use exact decimals: formula hours + minutes/60 (e.g. "6 ч 31 мин" or "6h 31m" → sleep_hours 6.52; "Фактическое время сна 6 ч 5 мин" or "Actual sleep 6h 5m" → actual_sleep_hours 6.08). The app displays actual sleep (excluding wake-ups): always extract "Фактическое время сна" / "Actual sleep" into actual_sleep_hours when visible; put total/time-in-bed in sleep_hours. Do NOT use (actual_sleep + awake) or time-in-bed as the main value. If the screenshot also shows RHR or HRV, set rhr and/or hrv in the sleep object.
 When type is "wellness", set "wellness" to: { "rhr": <number or null>, "hrv": <number or null> }.
-When type is "workout", set "workout" to: {
+{workout_block}
+
+Output ONLY valid JSON. No markdown."""
+
+WORKOUT_OBJECT_ATHLETE = """When type is "workout", set "workout" to: {
   "name": string or null (e.g. "Morning Run", "Zwift - Watopia"),
   "date": string or null (YYYY-MM-DD if visible, else null),
   "sport_type": string or null (Run, Ride, Swim, WeightTraining, Yoga, etc. infer from icon/context),
@@ -67,18 +71,28 @@ When type is "workout", set "workout" to: {
   "max_hr": integer or null,
   "tss": integer or null (Training Stress Score, Load, etc.),
   "notes": string or null (any other useful info like "Indoor", "Treadmill", "Intervals")
-}.
+}."""
 
-Output ONLY valid JSON. No markdown."""
+WORKOUT_OBJECT_REGULAR = """When type is "workout", set "workout" to: {
+  "name": string or null (e.g. "Morning Run", "Gym session"),
+  "date": string or null (YYYY-MM-DD if visible, else null),
+  "sport_type": string or null (Run, Ride, Swim, etc.),
+  "duration_sec": integer or null (total seconds),
+  "distance_m": float or null (meters),
+  "calories": float or null,
+  "notes": string or null
+}. Omit TSS, avg_hr, max_hr for regular users."""
 
 
-def _photo_system_prompt(locale: str, reference_date: str | None = None) -> str:
+def _photo_system_prompt(locale: str, reference_date: str | None = None, is_athlete: bool = True) -> str:
     lang = language_for_locale(locale)
     lang_rule = (
         f"All text values in your JSON (dish name in food.name, workout name/notes, raw_notes, factor_ratings values) must be STRICTLY in {lang}. "
         "JSON keys must always be in English (e.g. name, type, food, sleep, workout); only string values may be in the user's language."
     )
-    base = f"{lang_rule}\n\n{SYSTEM_PROMPT}"
+    workout_block = WORKOUT_OBJECT_ATHLETE if is_athlete else WORKOUT_OBJECT_REGULAR
+    base_prompt = SYSTEM_PROMPT.format(workout_block=workout_block)
+    base = f"{lang_rule}\n\n{base_prompt}"
     if reference_date and len(str(reference_date).strip()) >= 10:
         base += f"\n\nThe user is logging this entry for date {reference_date.strip()[:10]}. For sleep, set the 'date' field to this exact value (YYYY-MM-DD)."
     return base
@@ -89,6 +103,7 @@ async def classify_and_analyze_image(
     *,
     locale: str = "ru",
     reference_date: str | None = None,
+    is_athlete: bool = True,
 ) -> tuple[str, NutritionAnalysisResult | SleepExtractionResult | WellnessPhotoResult | WorkoutPhotoResult]:
     """
     Single Gemini call: classify image and return the analysis.
@@ -101,7 +116,7 @@ async def classify_and_analyze_image(
         safety_settings=SAFETY_SETTINGS,
     )
     part = {"mime_type": "image/jpeg", "data": image_bytes}
-    contents = [_photo_system_prompt(locale, reference_date=reference_date), part]
+    contents = [_photo_system_prompt(locale, reference_date=reference_date, is_athlete=is_athlete), part]
     response = await run_generate_content(model, contents)
     if not response or not response.text:
         raise ValueError("Empty response from Gemini")

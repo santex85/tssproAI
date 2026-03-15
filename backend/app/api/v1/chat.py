@@ -23,6 +23,7 @@ from app.models.user_weekly_summary import UserWeeklySummary
 from app.models.wellness_cache import WellnessCache
 from app.models.workout import Workout
 from app.schemas.pagination import PaginatedResponse
+from app.services.datetime_prompt import format_current_datetime_for_prompt, parse_client_now
 from app.services.fit_parser import parse_fit_session
 from app.services.workout_processor import fit_data_to_summary, save_workout_from_fit
 from app.services.gemini_photo_analyzer import classify_and_analyze_image
@@ -53,10 +54,10 @@ def _validate_chat_image(file: UploadFile | None, image_bytes: bytes) -> None:
         raise HTTPException(status_code=400, detail="File must be a valid image (JPEG, PNG, GIF or WebP).")
 
 
-async def _describe_image_for_chat(image_bytes: bytes, locale: str) -> str:
+async def _describe_image_for_chat(image_bytes: bytes, locale: str, is_athlete: bool = True) -> str:
     """Get a short text description of the image for coach context. Uses classify_and_analyze_image."""
     try:
-        kind, result = await classify_and_analyze_image(image_bytes, locale=locale)
+        kind, result = await classify_and_analyze_image(image_bytes, locale=locale, is_athlete=is_athlete)
         parts = [f"Photo type: {kind}."]
         if hasattr(result, "model_dump"):
             d = result.model_dump()
@@ -99,9 +100,20 @@ Avoid repetition and rigid structure:
 - Vary your responses: do not use the same template every time (e.g. load then sleep then nutrition then advice). Answer the user's specific question first; add one or two relevant facts only when needed.
 - For short user messages (e.g. "What should I do tomorrow?", "A bit", "No"), give a short, focused reply without re-listing all metrics."""
 
-def _chat_system_with_locale(locale: str, is_premium: bool = False) -> str:
+CHAT_SYSTEM_REGULAR_SIMPLE = """You are a health and activity consultant. You have context about the user (sleep, nutrition, wellness).
+- Focus on what the user asks. Give practical, simple advice. Use only numbers from the context; never invent data.
+- If a section has no data, say "No data". Reply briefly and helpfully; avoid sports jargon (TSS, CTL, ATL, polarisation)."""
+
+CHAT_SYSTEM_PREMIUM_SIMPLE = """You are the user's personal health and activity consultant. Discuss sleep, nutrition, wellness, light activity.
+- Be warm and human. Use only facts from the context; never invent data. Avoid sports jargon (TSS, CTL, ATL, polarisation).
+- Answer the user's question first. Add relevant facts when helpful. Keep language simple."""
+
+def _chat_system_with_locale(locale: str, is_premium: bool = False, is_athlete: bool = True) -> str:
     lang = language_for_locale(locale)
-    base = CHAT_SYSTEM_PREMIUM if is_premium else CHAT_SYSTEM_REGULAR
+    if is_athlete:
+        base = CHAT_SYSTEM_PREMIUM if is_premium else CHAT_SYSTEM_REGULAR
+    else:
+        base = CHAT_SYSTEM_PREMIUM_SIMPLE if is_premium else CHAT_SYSTEM_REGULAR_SIMPLE
     return f"You must respond only in {lang}. All your reply must be in this language.\n\n{base}"
 
 
@@ -176,42 +188,7 @@ def _day_bounds_utc(d: date, tz_name: str) -> tuple[datetime, datetime]:
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
-def _parse_and_validate_client_now(client_now_str: str | None) -> datetime | None:
-    """Parse client_now (ISO 8601 UTC). Return None if missing, invalid, or outside [-24h, +5min] from server UTC."""
-    if not client_now_str or not client_now_str.strip():
-        return None
-    try:
-        dt = datetime.fromisoformat(client_now_str.strip().replace("Z", "+00:00"))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-        server_now = datetime.now(timezone.utc)
-        delta = dt - server_now
-        if delta < timedelta(hours=-24) or delta > timedelta(minutes=5):
-            return None
-        return dt
-    except (ValueError, TypeError):
-        return None
-
-
-def _format_current_datetime_for_prompt(client_now_utc: datetime | None, user_tz: str | None) -> str:
-    """Format 'Current date and time (athlete's local)' block for the prompt. Uses client_now if valid, else server now."""
-    tz_str = (user_tz or "").strip() or "UTC"
-    try:
-        tz = ZoneInfo(tz_str)
-    except Exception:
-        tz = timezone.utc
-    if client_now_utc is not None:
-        now_local = client_now_utc.astimezone(tz)
-    else:
-        now_local = datetime.now(tz)
-    date_str = now_local.strftime("%Y-%m-%d")
-    time_str = now_local.strftime("%H:%M")
-    return f"## Current date and time (athlete's local)\n{date_str}, {time_str}. Timezone: {tz_str}."
-
-
-async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium: bool = False, user_tz: str | None = None) -> str:
+async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium: bool = False, user_tz: str | None = None, is_athlete: bool = True) -> str:
     """Build a compressed text summary: profile, food/wellness today + last N days, last M workouts. No passwords/tokens."""
     tz_str = (user_tz or "").strip() or "UTC"
     try:
@@ -271,14 +248,15 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
         if profile.birth_year is not None:
             athlete["birth_year"] = profile.birth_year
             athlete["age_years"] = today_local.year - profile.birth_year
-        if profile.ftp is not None:
-            athlete["ftp"] = profile.ftp
-        if profile.target_race_date is not None:
-            athlete["target_race_date"] = profile.target_race_date.isoformat()
-        if profile.target_race_name:
-            athlete["target_race_name"] = profile.target_race_name
-        if profile.target_race_date is not None and profile.target_race_date >= today_local:
-            athlete["days_to_race"] = (profile.target_race_date - today_local).days
+        if is_athlete:
+            if profile.ftp is not None:
+                athlete["ftp"] = profile.ftp
+            if profile.target_race_date is not None:
+                athlete["target_race_date"] = profile.target_race_date.isoformat()
+            if profile.target_race_name:
+                athlete["target_race_name"] = profile.target_race_name
+            if profile.target_race_date is not None and profile.target_race_date >= today_local:
+                athlete["days_to_race"] = (profile.target_race_date - today_local).days
     if not athlete.get("display_name") and email:
         athlete["display_name"] = email
 
@@ -326,10 +304,12 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
 
     wellness_history = []
     for row in r_well.all():
-        wellness_history.append({
-            "date": row[0].isoformat() if row[0] else None,
-            "sleep_hours": row[1], "rhr": row[2], "hrv": row[3], "ctl": row[4], "atl": row[5], "tsb": row[6], "weight_kg": row[7],
-        })
+        wh = {"date": row[0].isoformat() if row[0] else None, "sleep_hours": row[1], "rhr": row[2], "hrv": row[3], "weight_kg": row[7]}
+        if is_athlete:
+            wh["ctl"] = row[4]
+            wh["atl"] = row[5]
+            wh["tsb"] = row[6]
+        wellness_history.append(wh)
 
     workouts = []
     for w in r_w.scalars().all():
@@ -348,8 +328,9 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
         s = s.strip()
         return s if len(s) <= limit else s[: limit - 3] + "..."
 
+    profile_label = "User profile (weight, height, age)" if not is_athlete else "Athlete profile (weight, height, age, FTP, name, sex)"
     parts = [
-        "## Athlete profile (weight, height, age, FTP, name, sex)",
+        f"## {profile_label}",
         json.dumps(athlete, default=str),
         "## Food today (sum)",
         f"Calories: {food_sum['calories']:.0f}, Protein: {food_sum['protein_g']:.0f}g, Fat: {food_sum['fat_g']:.0f}g, Carbs: {food_sum['carbs_g']:.0f}g",
@@ -357,15 +338,21 @@ async def _build_athlete_context(session: AsyncSession, user_id: int, is_premium
         _format_food_entries_text(food_entries),
         "## Wellness today (sleep, RHR, HRV)",
         json.dumps(wellness_today or {}),
-        "## Load (CTL/ATL/TSB)",
-        json.dumps(ctl_atl_tsb or {}),
+    ]
+    if is_athlete:
+        parts.extend([
+            "## Load (CTL/ATL/TSB)",
+            json.dumps(ctl_atl_tsb or {}),
+        ])
+    parts.extend([
         "## Wellness history (last %d days)" % CHAT_CONTEXT_DAYS,
         _format_wellness_history_text(wellness_history),
         "## Sleep (from photos, last %d days)" % CHAT_CONTEXT_DAYS,
         sleep_summary,
-        "## Recent workouts (manual/FIT)",
-        _format_workouts_text(workouts),
-    ]
+    ])
+    if is_athlete:
+        parts.append("## Recent workouts (manual/FIT)")
+        parts.append(_format_workouts_text(workouts))
     if is_premium:
         r_summary = await session.execute(
             select(UserWeeklySummary.summary_text)
@@ -498,7 +485,8 @@ class CreateThreadBody(BaseModel):
 class RunOrchestratorBody(BaseModel):
     locale: str = "ru"
     for_date: date | None = None
-    client_local_hour: int | None = None  # 0-23, local hour when user tapped "analysis"
+    client_local_hour: int | None = None  # deprecated: use client_now instead
+    client_now: str | None = None  # ISO 8601 UTC; used for datetime in prompt
 
 
 async def _get_or_create_default_thread(session: AsyncSession, user_id: int) -> ChatThread:
@@ -699,24 +687,32 @@ async def send_message(
     )
     await session.flush()
 
-    today_local = datetime.now(ZoneInfo((user.timezone or "UTC").strip() or "UTC")).date()
     reply = ""
     try:
         if body.run_orchestrator:
-            result = await run_daily_decision(session, uid, today_local, locale=locale)
-            reply = f"Decision: {result.decision.value}. {result.reason}"
+            from app.services.user_type import resolve_is_athlete
+            r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+            profile = r_prof.scalar_one_or_none()
+            is_athlete = await resolve_is_athlete(session, uid, profile)
+            result = await run_daily_decision(session, uid, locale=locale, client_now=body.client_now, is_athlete=is_athlete)
+            label = "Recommendations" if result.decision.value == "Advice" else "Decision"
+            reply = f"{label}: {result.reason}"
             if result.suggestions_next_days:
                 reply += f"\n\n{result.suggestions_next_days}"
         else:
             import google.generativeai as genai
             from app.config import settings
             from app.services.gemini_common import run_generate_content
-            context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
-            client_now_utc = _parse_and_validate_client_now(body.client_now)
-            datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+            from app.services.user_type import resolve_is_athlete
+            r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+            profile = r_prof.scalar_one_or_none()
+            is_athlete = await resolve_is_athlete(session, uid, profile)
+            context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone, is_athlete=is_athlete)
+            client_now_utc = parse_client_now(body.client_now)
+            datetime_block = format_current_datetime_for_prompt(client_now_utc, user.timezone)
             context = f"{datetime_block}\n\n{context}"
             model = genai.GenerativeModel(settings.gemini_model)
-            chat_system = _chat_system_with_locale(locale, user.is_premium)
+            chat_system = _chat_system_with_locale(locale, user.is_premium, is_athlete=is_athlete)
             conversation_block = await _get_conversation_block(session, uid, thread_id)
             if conversation_block:
                 prompt = (
@@ -799,12 +795,16 @@ async def send_message_with_file(
     )
     await session.flush()
 
-    today_local = datetime.now(ZoneInfo((user.timezone or "UTC").strip() or "UTC")).date()
     reply = ""
     try:
         if run_orch:
-            result = await run_daily_decision(session, uid, today_local, locale=locale)
-            reply = f"Decision: {result.decision.value}. {result.reason}"
+            from app.services.user_type import resolve_is_athlete
+            r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+            profile = r_prof.scalar_one_or_none()
+            is_athlete = await resolve_is_athlete(session, uid, profile)
+            result = await run_daily_decision(session, uid, locale=locale, client_now=client_now, is_athlete=is_athlete)
+            label = "Recommendations" if result.decision.value == "Advice" else "Decision"
+            reply = f"{label}: {result.reason}"
             if result.suggestions_next_days:
                 reply += f"\n\n{result.suggestions_next_days}"
         else:
@@ -812,9 +812,13 @@ async def send_message_with_file(
             from app.config import settings
             from app.services.gemini_common import run_generate_content
 
-            context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
-            client_now_utc = _parse_and_validate_client_now(client_now)
-            datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+            from app.services.user_type import resolve_is_athlete
+            r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+            profile = r_prof.scalar_one_or_none()
+            is_athlete = await resolve_is_athlete(session, uid, profile)
+            context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone, is_athlete=is_athlete)
+            client_now_utc = parse_client_now(client_now)
+            datetime_block = format_current_datetime_for_prompt(client_now_utc, user.timezone)
             context = f"{datetime_block}\n\n{context}"
             if fit_summary:
                 context += "\n\n## Uploaded workout (this message)\n" + fit_summary
@@ -823,7 +827,7 @@ async def send_message_with_file(
                 if monthly:
                     context += "\n\n## Monthly averages (similar workouts, last 30 days)\n" + monthly
             model = genai.GenerativeModel(settings.gemini_model)
-            chat_system = _chat_system_with_locale(locale, user.is_premium)
+            chat_system = _chat_system_with_locale(locale, user.is_premium, is_athlete=is_athlete)
             fit_instruction = ""
             if fit_summary and fit_data:
                 fit_instruction = (
@@ -884,10 +888,14 @@ async def send_message_with_image(
 
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="No image file")
+    from app.services.user_type import resolve_is_athlete
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+    profile = r_prof.scalar_one_or_none()
+    is_athlete = await resolve_is_athlete(session, uid, profile)
     image_bytes = await read_upload_bounded(file)
     _validate_chat_image(file, image_bytes)
     image_bytes = await resize_image_for_ai_async(image_bytes)
-    image_description = await _describe_image_for_chat(image_bytes, locale)
+    image_description = await _describe_image_for_chat(image_bytes, locale, is_athlete=is_athlete)
 
     user_content = (message or "").strip() or "Что на фото? Прокомментируй."
     session.add(
@@ -900,14 +908,13 @@ async def send_message_with_image(
         import google.generativeai as genai
         from app.config import settings
         from app.services.gemini_common import run_generate_content
-
-        context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone)
-        client_now_utc = _parse_and_validate_client_now(client_now)
-        datetime_block = _format_current_datetime_for_prompt(client_now_utc, user.timezone)
+        context = await _build_athlete_context(session, uid, user.is_premium, user_tz=user.timezone, is_athlete=is_athlete)
+        client_now_utc = parse_client_now(client_now)
+        datetime_block = format_current_datetime_for_prompt(client_now_utc, user.timezone)
         context = f"{datetime_block}\n\n{context}"
         context += "\n\n## Photo in this message\n" + image_description
         model = genai.GenerativeModel(settings.gemini_model)
-        chat_system = _chat_system_with_locale(locale, is_premium=True)
+        chat_system = _chat_system_with_locale(locale, is_premium=True, is_athlete=is_athlete)
         prompt = f"{chat_system}\n\nContext:\n{context}\n\nUser message: {user_content}"
         response = await run_generate_content(model, prompt)
         reply = response.text if response and response.text else "No response."
@@ -939,16 +946,18 @@ async def run_orchestrator(
     uid = user.id
     body = body or RunOrchestratorBody()
     locale = body.locale
-    for_date = body.for_date or date.today()
-    client_local_hour = body.client_local_hour
+    from app.services.user_type import resolve_is_athlete
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == uid))
+    profile = r_prof.scalar_one_or_none()
+    is_athlete = await resolve_is_athlete(session, uid, profile)
     result = await run_daily_decision(
-        session, uid, today=for_date, locale=locale, client_local_hour=client_local_hour
+        session, uid, locale=locale, client_now=body.client_now, is_athlete=is_athlete
     )
     if user.is_premium:
         return {
             "decision": result.decision.value,
             "reason": result.reason,
-            "modified_plan": result.modified_plan.model_dump() if result.modified_plan else None,
+            "modified_plan": result.modified_plan.model_dump() if result.modified_plan and result.decision.value != "Advice" else None,
             "suggestions_next_days": result.suggestions_next_days,
             "evening_tips": result.evening_tips,
             "plan_tomorrow": result.plan_tomorrow,

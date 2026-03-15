@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_request_locale
 from app.core.upload import read_upload_bounded
 from app.db.session import get_db
+from app.models.athlete_profile import AthleteProfile
 from app.models.food_log import FoodLog, MealType
 from app.models.user import User
 from app.schemas.nutrition import (
@@ -22,6 +23,7 @@ from app.schemas.nutrition import (
     ReanalyzeRequest,
 )
 from app.services.gemini_nutrition import analyze_food_from_image, analyze_food_from_text
+from app.services.user_type import resolve_is_athlete
 from app.services.image_resize import resize_image_for_ai_async
 from app.services.audit import log_action
 
@@ -68,9 +70,12 @@ async def analyze_nutrition(
     ):
         raise HTTPException(status_code=400, detail="File must be a valid image (JPEG, PNG, GIF or WebP).")
     image_bytes = await resize_image_for_ai_async(image_bytes)
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user.id))
+    profile = r_prof.scalar_one_or_none()
+    is_athlete = await resolve_is_athlete(session, user.id, profile)
     try:
         result, extended_nutrients = await analyze_food_from_image(
-            image_bytes, extended=True, locale=locale
+            image_bytes, extended=True, locale=locale, is_athlete=is_athlete
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

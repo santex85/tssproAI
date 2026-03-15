@@ -10,6 +10,7 @@ from app.api.deps import check_photo_usage, get_current_user, get_request_locale
 from app.core.upload import read_upload_bounded
 from app.core.rate_limit import check_and_consume_photo_ai_limit
 from app.db.session import get_db
+from app.models.athlete_profile import AthleteProfile
 from app.models.food_log import FoodLog, MealType
 from app.models.user import User
 from app.models.wellness_cache import WellnessCache
@@ -24,6 +25,7 @@ from app.services.image_resize import resize_image_for_ai_async
 from app.services.sleep_analysis import analyze_and_save_sleep, get_resolved_sleep_hours_from_data, save_sleep_result, update_sleep_extraction_result
 from app.services.audit import log_action
 from app.services.storage import download_image, upload_image
+from app.services.user_type import resolve_is_athlete
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -115,9 +117,12 @@ async def analyze_photo(
 
     ref_date = _parse_optional_date(wellness_date)
     reference_date_str = ref_date.isoformat() if ref_date else None
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user.id))
+    profile = r_prof.scalar_one_or_none()
+    is_athlete = await resolve_is_athlete(session, user.id, profile)
     try:
         kind, result = await classify_and_analyze_image(
-            image_bytes, locale=locale, reference_date=reference_date_str
+            image_bytes, locale=locale, reference_date=reference_date_str, is_athlete=is_athlete
         )
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -132,7 +137,7 @@ async def analyze_photo(
         extended_nutrients: dict | None = None
         try:
             food_result, extended_nutrients = await analyze_food_from_image(
-                image_bytes, extended=True, locale=locale
+                image_bytes, extended=True, locale=locale, is_athlete=is_athlete
             )
         except (ValueError, Exception):
             pass  # keep classifier result if extended analysis fails
@@ -279,9 +284,14 @@ async def analyze_sleep_photo(
     file: Annotated[UploadFile, File(description="Sleep tracker screenshot")],
     mode: Annotated[str, Query(description="Extraction mode: lite (default) or full")] = "lite",
 ) -> SleepExtractionResponse:
-    """Extract sleep data from a screenshot using the sleep parser. mode=lite (fewer tokens) or full."""
+    """Extract sleep data from a screenshot using the sleep parser. mode=lite (fewer tokens) or full. Regular users always use lite."""
     await check_and_consume_photo_ai_limit(user.id, user.is_premium)
+    r_prof = await session.execute(select(AthleteProfile).where(AthleteProfile.user_id == user.id))
+    profile = r_prof.scalar_one_or_none()
+    is_athlete = await resolve_is_athlete(session, user.id, profile)
     if mode not in ("lite", "full"):
+        mode = "lite"
+    if not is_athlete:
         mode = "lite"
     image_bytes = await read_upload_bounded(file)
     _validate_image(file, image_bytes)

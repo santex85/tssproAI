@@ -815,6 +815,7 @@ export interface AthleteProfileResponse {
   target_race_date?: string | null;
   target_race_name?: string | null;
   days_to_race?: number | null;
+  is_athlete?: boolean | null;
   is_premium?: boolean;
   dev_can_toggle_premium?: boolean;
   locale?: string;
@@ -836,6 +837,7 @@ export async function updateAthleteProfile(body: {
   carbs_goal?: number | null;
   target_race_date?: string | null;
   target_race_name?: string | null;
+  is_athlete?: boolean | null;
   locale?: string | null;
   timezone?: string | null;
 }): Promise<AthleteProfileResponse> {
@@ -1054,7 +1056,7 @@ export async function sendChatMessageWithImage(
 
 export async function runOrchestrator(
   locale?: string,
-  clientLocalHour?: number
+  _clientLocalHour?: number
 ): Promise<{
   decision: string;
   reason?: string;
@@ -1064,13 +1066,9 @@ export async function runOrchestrator(
   plan_tomorrow?: string;
   is_teaser?: boolean;
 }> {
-  const hour =
-    clientLocalHour !== undefined && clientLocalHour !== null
-      ? clientLocalHour
-      : new Date().getHours();
   return api("/api/v1/chat/orchestrator/run", {
     method: "POST",
-    body: { locale: locale ?? "en", client_local_hour: hour },
+    body: { locale: locale ?? "en", client_now: new Date().toISOString() },
   });
 }
 

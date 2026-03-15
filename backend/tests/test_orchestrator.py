@@ -1,7 +1,7 @@
 """Tests for orchestrator helpers: _normalize_decision, _parse_llm_response, _build_system_prompt, _build_context, _get_response_schema."""
 
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -99,45 +99,50 @@ def test_build_system_prompt_evening_includes_plan_tomorrow():
     assert "Russian" in prompt or "ru" in prompt.lower()
 
 
-def test_build_context_includes_current_local_hour():
-    """Context includes current local hour block when provided."""
+def test_build_context_includes_datetime_when_client_now_provided():
+    """Context includes full datetime block when client_now_utc is provided."""
+    # 14:00 UTC
+    client_now = datetime(2026, 3, 11, 14, 0, tzinfo=timezone.utc)
     ctx = _build_context(
         {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0},
         {},
         [],
         None,
-        current_local_hour=14,
+        client_now_utc=client_now,
     )
     assert "## Current date and time" in ctx
-    assert "14" in ctx
+    assert "2026-03-11" in ctx
+    assert "14:00" in ctx
 
 
-def test_build_context_hour_not_provided():
-    """Context shows 'not provided' when current_local_hour is None."""
+def test_build_context_includes_datetime_when_client_now_none():
+    """Context includes datetime block (server now) when client_now_utc is None."""
     ctx = _build_context(
         {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0},
         {},
         [],
         None,
-        current_local_hour=None,
+        client_now_utc=None,
     )
     assert "## Current date and time" in ctx
-    assert "not provided" in ctx
+    assert "Timezone:" in ctx
 
 
 def test_build_context_includes_date_and_timezone():
-    """Context includes date, weekday and timezone when provided."""
+    """Context includes date and timezone when client_now_utc and timezone provided."""
+    # 07:00 UTC = 10:00 Moscow (UTC+3)
+    client_now = datetime(2026, 3, 11, 7, 0, tzinfo=timezone.utc)
     ctx = _build_context(
         {"calories": 0, "protein_g": 0, "fat_g": 0, "carbs_g": 0},
         {},
         [],
         None,
-        current_local_hour=10,
+        client_now_utc=client_now,
         today_date=date(2026, 3, 11),
         timezone_name="Europe/Moscow",
     )
     assert "2026-03-11" in ctx
-    assert "Wednesday" in ctx
+    assert "10:00" in ctx
     assert "Europe/Moscow" in ctx
 
 

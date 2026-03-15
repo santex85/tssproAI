@@ -470,6 +470,10 @@ export const ru = {
     targetRaceDate: "Дата старта",
     targetRaceDatePlaceholder: "ГГГГ-ММ-ДД",
     daysToRace: "До старта: {days} дн.",
+    isAthlete: "Тип пользователя",
+    userTypeAthlete: "Атлет (тренируюсь по плану)",
+    userTypeRegular: "Обычный пользователь",
+    userTypeAuto: "Авто",
   },
   wellnessScreen: {
     title: "Сон и здоровье",
@@ -995,6 +999,10 @@ export const en = {
     targetRaceDate: "Race date",
     targetRaceDatePlaceholder: "YYYY-MM-DD",
     daysToRace: "{days} days to race",
+    isAthlete: "User type",
+    userTypeAthlete: "Athlete (training by plan)",
+    userTypeRegular: "Regular user",
+    userTypeAuto: "Auto",
   },
   wellnessScreen: {
     title: "Sleep & wellness",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -23,6 +23,7 @@ class AthleteProfile(Base):
     carbs_goal: Mapped[float | None] = mapped_column(Float, nullable=True)
     target_race_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     target_race_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    is_athlete: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="athlete_profile")

@@ -457,6 +457,10 @@ export const fr = {
     targetRaceDate: "Date de la course",
     targetRaceDatePlaceholder: "AAAA-MM-JJ",
     daysToRace: "{days} jours avant le départ",
+    isAthlete: "Type d'utilisateur",
+    userTypeAthlete: "Athlète (entraînement planifié)",
+    userTypeRegular: "Utilisateur régulier",
+    userTypeAuto: "Auto",
   },
   wellnessScreen: {
     title: "Sommeil et bien-être",

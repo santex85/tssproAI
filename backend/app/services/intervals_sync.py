@@ -6,6 +6,7 @@ import re
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import case, literal, select
+from zoneinfo import ZoneInfo
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
@@ -140,6 +141,7 @@ async def sync_intervals_to_db(
     api_key: str,
     *,
     client_today: date | None = None,
+    user_timezone: str | None = None,
     use_bearer: bool = False,
 ) -> tuple[int, int]:
     """
@@ -148,8 +150,15 @@ async def sync_intervals_to_db(
 
     When client_today is provided (user's local date), the fetch range extends to include that date,
     so sync at 4–5 AM in Thailand (UTC+7) fetches data for the user's "today" instead of server UTC yesterday.
+    When client_today is None but user_timezone is provided, compute today in that timezone (for webhook/background sync).
     """
     server_today = date.today()
+    if client_today is None and user_timezone and user_timezone.strip():
+        try:
+            tz = ZoneInfo(user_timezone.strip())
+            client_today = datetime.now(tz).date()
+        except Exception:
+            pass
     anchor = max(server_today, client_today) if client_today else server_today
     newest = anchor + timedelta(days=1)  # include "tomorrow" so athlete's "today" in any TZ is fetched
     oldest = newest - timedelta(days=SYNC_DAYS)

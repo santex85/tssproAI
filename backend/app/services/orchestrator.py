@@ -24,12 +24,14 @@ from app.models.user import User
 from app.models.wellness_cache import WellnessCache
 from app.models.workout import Workout
 from app.schemas.orchestrator import Decision, ModifiedPlanItem, OrchestratorResponse
+from app.services.datetime_prompt import format_current_datetime_for_prompt, parse_client_now
 from app.services.gemini_common import run_generate_content
 from app.services.load_metrics import compute_fitness_from_workouts
 from app.services.intervals_client import create_event
 from app.services.crypto import decrypt_value
 from app.models.intervals_credentials import IntervalsCredentials
 from app.models.sleep_extraction import SleepExtraction
+from app.services.user_type import resolve_is_athlete
 
 
 # Gemini protobuf Schema does not support these JSON Schema fields.
@@ -197,6 +199,26 @@ Example (Skip):
 
 No metaphors, no long text. Output only a single JSON object, no markdown code fences."""
 
+SYSTEM_PROMPT_ADVICE = """You are a health and activity consultant. Your task is to give recommendations based on the user's data: sleep, nutrition, general wellbeing. Do NOT give Go/Modify/Skip decisions — only advice.
+
+Output format (strict JSON). Use decision "Advice", put main advice in reason, modified_plan always null:
+{
+  "decision": "Advice",
+  "reason": "main advice text (sleep, nutrition, activity recommendations)",
+  "modified_plan": null,
+  "suggestions_next_days": "optional text for next days" or null,
+  "evening_tips": "food and sleep advice for the rest of the evening" or null,
+  "plan_tomorrow": "activity recommendation for tomorrow" or null
+}
+
+Keep language simple. No TSS, CTL, ATL, polarisation or training-plan jargon. Focus on: sleep quality, nutrition balance, light activity when appropriate."""
+
+
+def _build_advice_system_prompt(locale: str) -> str:
+    lang = language_for_locale(locale)
+    return f"{SYSTEM_PROMPT_ADVICE}\n\nYou must respond only in {lang}. All text fields must be in this language."
+
+
 def _build_system_prompt(
     locale: str,
     had_workout_today: bool,
@@ -257,6 +279,8 @@ def _normalize_decision(raw: Any) -> Decision:
         return Decision.MODIFY
     if s == "skip":
         return Decision.SKIP
+    if s == "advice":
+        return Decision.ADVICE
     return Decision.GO
 
 
@@ -387,26 +411,20 @@ def _build_context(
     wellness_history: list[dict] | None = None,
     recent_workouts: list[dict] | None = None,
     had_workout_today: bool | None = None,
-    current_local_hour: int | None = None,
+    client_now_utc: datetime | None = None,
     today_date: date | None = None,
     timezone_name: str | None = None,
+    for_advice: bool = False,
 ) -> str:
-    if today_date:
-        weekday = today_date.strftime("%A")
-        date_str = f"{today_date.isoformat()} ({weekday})"
-    else:
-        date_str = "not provided"
-    hour_str = str(current_local_hour) if current_local_hour is not None else "not provided"
     tz_str = timezone_name or "UTC"
+    label = f"{'user' if for_advice else 'athlete'}'s local"
+    datetime_block = format_current_datetime_for_prompt(client_now_utc, tz_str, label=label)
     profile_str = ", ".join(f"{k}={v}" for k, v in (athlete_profile or {}).items()) or "(none)"
     wellness_str = ", ".join(f"{k}={v}" for k, v in (wellness_today or {}).items() if v is not None) or "(none)"
     load_str = ", ".join(f"{k}={v}" for k, v in (ctl_atl_tsb or {}).items() if v is not None) or "(none)"
     parts = [
-        "## Current date and time (athlete's local)",
-        f"Date: {date_str}",
-        f"Hour: {hour_str}",
-        f"Timezone: {tz_str}",
-        "## Athlete profile (weight, height, age, FTP, name, sex)",
+        datetime_block,
+        ("## User profile (weight, height, age)" if for_advice else "## Athlete profile (weight, height, age, FTP, name, sex)"),
         profile_str,
         "## Food today (sum)",
         f"Calories: {food_sum.get('calories', 0):.0f}, Protein: {food_sum.get('protein_g', 0):.0f}g, Fat: {food_sum.get('fat_g', 0):.0f}g, Carbs: {food_sum.get('carbs_g', 0):.0f}g",
@@ -414,15 +432,23 @@ def _build_context(
         _format_food_entries(food_entries or []),
         "## Wellness today",
         wellness_str,
-        "## Load (CTL/ATL/TSB)",
-        load_str,
+    ]
+    if not for_advice:
+        parts.extend([
+            "## Load (CTL/ATL/TSB)",
+            load_str,
+        ])
+    parts.extend([
         "## Wellness history (last 7 days)",
         _format_wellness_history(wellness_history or [], today_iso=today_date.isoformat() if today_date else None),
-        "## Planned workouts today (Intervals)",
-        _format_planned_workouts(events_today),
-        "## Recent workouts (manual/FIT, if any)",
-        _format_recent_workouts(recent_workouts or []),
-    ]
+    ])
+    if not for_advice:
+        parts.extend([
+            "## Planned workouts today (Intervals)",
+            _format_planned_workouts(events_today),
+            "## Recent workouts (manual/FIT, if any)",
+            _format_recent_workouts(recent_workouts or []),
+        ])
     if had_workout_today is not None:
         parts.append("## Workout already done today (yes/no)")
         parts.append("yes" if had_workout_today else "no")
@@ -462,25 +488,37 @@ async def run_daily_decision(
     today: date | None = None,
     locale: str = "ru",
     client_local_hour: int | None = None,
+    client_now: str | None = None,
+    is_athlete: bool | None = None,
 ) -> OrchestratorResponse:
     """
     Aggregate context from food_log, wellness_cache, and Intervals events;
     call Gemini; return validated decision; on Modify/Skip optionally update
     Intervals and write to chat.
     When client_local_hour is evening (e.g. >= 18), prompt asks for plan_tomorrow and evening_tips instead of Skip.
+    client_now: optional ISO 8601 UTC; when provided, used for datetime in prompt and to derive today/client_local_hour.
     """
-    today = today or date.today()
     if not settings.google_gemini_api_key or not settings.google_gemini_api_key.strip():
         logger.warning("Orchestrator skipped for user_id=%s: GOOGLE_GEMINI_API_KEY not set", user_id)
         return OrchestratorResponse(decision=Decision.SKIP, reason="AI unavailable; defaulting to Skip.")
-    is_evening = _is_evening(client_local_hour)
-    wellness_from = today - timedelta(days=7)
-    from_date = today - timedelta(days=14)
 
     # Fetch user first to get timezone for correct daily bounds (UTC vs user local)
     r_user = await session.execute(select(User.email, User.is_premium, User.timezone).where(User.id == user_id))
     user_row = r_user.one_or_none()
     user_tz = (user_row[2] or "UTC").strip() or "UTC" if user_row and len(user_row) > 2 else "UTC"
+
+    # Derive now_local, today, client_local_hour from client_now or server time in user TZ
+    client_now_utc = parse_client_now(client_now)
+    if client_now_utc is not None:
+        now_local = client_now_utc.astimezone(ZoneInfo(user_tz))
+    else:
+        now_local = datetime.now(ZoneInfo(user_tz))
+    today = now_local.date()
+    client_local_hour = now_local.hour
+
+    is_evening = _is_evening(client_local_hour)
+    wellness_from = today - timedelta(days=7)
+    from_date = today - timedelta(days=14)
     today_start_utc, today_end_utc = _day_bounds_utc(today, user_tz)
     from_start_utc, _ = _day_bounds_utc(from_date, user_tz)
     _, to_start_utc = _day_bounds_utc(today + timedelta(days=1), user_tz)
@@ -564,6 +602,9 @@ async def run_daily_decision(
     email = user_row[0] if user_row else None
     is_premium = bool(user_row[1]) if user_row and len(user_row) > 1 else False
     profile = r_prof.scalar_one_or_none()
+    if is_athlete is None:
+        is_athlete = await resolve_is_athlete(session, user_id, profile)
+
     athlete_profile: dict[str, Any] = {}
     if profile:
         if profile.weight_kg is not None:
@@ -573,14 +614,15 @@ async def run_daily_decision(
         if profile.birth_year is not None:
             athlete_profile["birth_year"] = profile.birth_year
             athlete_profile["age_years"] = today.year - profile.birth_year
-        if profile.ftp is not None:
-            athlete_profile["ftp"] = profile.ftp
-        if profile.target_race_date is not None:
-            athlete_profile["target_race_date"] = profile.target_race_date.isoformat()
-        if profile.target_race_name:
-            athlete_profile["target_race_name"] = profile.target_race_name
-        if profile.target_race_date is not None and profile.target_race_date >= today:
-            athlete_profile["days_to_race"] = (profile.target_race_date - today).days
+        if is_athlete:
+            if profile.ftp is not None:
+                athlete_profile["ftp"] = profile.ftp
+            if profile.target_race_date is not None:
+                athlete_profile["target_race_date"] = profile.target_race_date.isoformat()
+            if profile.target_race_name:
+                athlete_profile["target_race_name"] = profile.target_race_name
+            if profile.target_race_date is not None and profile.target_race_date >= today:
+                athlete_profile["days_to_race"] = (profile.target_race_date - today).days
     if not athlete_profile.get("display_name") and email:
         athlete_profile["display_name"] = email
 
@@ -668,6 +710,7 @@ async def run_daily_decision(
                     exc_info=True,
                 )
 
+    for_advice = not is_athlete
     context = _build_context(
         food_sum,
         wellness_today,
@@ -678,14 +721,18 @@ async def run_daily_decision(
         wellness_history=wellness_history,
         recent_workouts=recent_workouts,
         had_workout_today=had_workout_today,
-        current_local_hour=client_local_hour,
+        client_now_utc=client_now_utc,
         today_date=today,
         timezone_name=user_tz,
+        for_advice=for_advice,
     )
 
-    system_prompt = _build_system_prompt(
-        locale, had_workout_today, is_evening=is_evening, client_local_hour=client_local_hour
-    )
+    if for_advice:
+        system_prompt = _build_advice_system_prompt(locale)
+    else:
+        system_prompt = _build_system_prompt(
+            locale, had_workout_today, is_evening=is_evening, client_local_hour=client_local_hour
+        )
     try:
         model = genai.GenerativeModel(
             settings.gemini_model,
@@ -715,9 +762,9 @@ async def run_daily_decision(
         )
         return OrchestratorResponse(decision=Decision.SKIP, reason="Parse error; defaulting to Skip.")
 
-    # On Modify/Skip or when we have evening/plan tips: write to chat
+    # On Modify/Skip/Advice or when we have evening/plan tips: write to chat
     write_chat = (
-        result.decision in (Decision.MODIFY, Decision.SKIP) and result.reason
+        result.decision in (Decision.MODIFY, Decision.SKIP, Decision.ADVICE) and result.reason
     ) or result.evening_tips or result.plan_tomorrow
     if write_chat:
         parts = []

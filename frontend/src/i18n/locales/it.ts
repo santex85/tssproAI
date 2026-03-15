@@ -457,6 +457,10 @@ export const it = {
     targetRaceDate: "Data gara",
     targetRaceDatePlaceholder: "AAAA-MM-GG",
     daysToRace: "Mancano {days} giorni alla partenza",
+    isAthlete: "Tipo di utente",
+    userTypeAthlete: "Atleta (alleno con piano)",
+    userTypeRegular: "Utente regolare",
+    userTypeAuto: "Auto",
   },
   wellnessScreen: {
     title: "Sonno e benessere",
