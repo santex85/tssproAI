@@ -416,5 +416,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { justifyContent: "center", alignItems: "center", gap: 12 },
   loadingText: { fontSize: 14 },
-  modal: { ...StyleSheet.absoluteFillObject, zIndex: 10 },
+  modal: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    ...(Platform.OS === "web" ? { width: "100%", height: "100%" } : {}),
+  },
 });

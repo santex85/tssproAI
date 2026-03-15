@@ -617,8 +617,20 @@ export function CameraScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D0D0D", padding: 20 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: "#0D0D0D",
+    ...(Platform.OS === "web"
+      ? { paddingHorizontal: 0, paddingVertical: 12 }
+      : { padding: 20 }),
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingHorizontal: Platform.OS === "web" ? 16 : 0,
+  },
   title: { fontSize: 22, fontWeight: "700", color: "#eee" },
   close: { fontSize: 16, color: "#38bdf8" },
   mainScroll: { flex: 1 },
@@ -638,7 +650,15 @@ const styles = StyleSheet.create({
   buttonTest: { borderColor: "rgba(148,163,184,0.3)", borderStyle: "dashed" },
   buttonIcon: { fontSize: 40, marginBottom: 8 },
   buttonText: { fontSize: 18, color: "#e2e8f0", fontWeight: "600" },
-  result: { backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", borderRadius: 24, padding: 20 },
+  result: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 24,
+    width: "100%",
+    alignSelf: "stretch",
+    ...(Platform.OS === "web" ? { padding: 16 } : { padding: 20 }),
+  },
   photoThumbnailWrap: { width: "100%", height: 180, borderRadius: 8, marginBottom: 12, overflow: "hidden" },
   photoThumbnail: { width: "100%", height: 180, borderRadius: 8 },
   photoPlaceholder: {
