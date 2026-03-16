@@ -95,10 +95,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 64M
-          cpus: "0.15"
+          memory: 128M
+          cpus: "0.2"
         reservations:
-          memory: 24M
+          memory: 48M
 
   umami_db:
     deploy:
@@ -113,7 +113,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: "0.2"
+          memory: 512M
+          cpus: "0.3"
         reservations:
-          memory: 48M
+          memory: 128M

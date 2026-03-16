@@ -97,10 +97,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 96M
+          memory: 192M
           cpus: "0.25"
         reservations:
-          memory: 32M
+          memory: 64M
 
   umami_db:
     image: postgres:15-alpine
@@ -133,8 +133,7 @@ services:
       APP_SECRET: ${UMAMI_APP_SECRET:?Set UMAMI_APP_SECRET in .env for Umami}
       HOST_URL: ${UMAMI_HOST_URL:-https://analytics.tsspro.tech}
     depends_on:
-      umami_db:
-        condition: service_healthy
+      - umami_db
     networks:
       - backend-db
       - frontend-backend
@@ -142,10 +141,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: "0.25"
+          memory: 512M
+          cpus: "0.3"
         reservations:
-          memory: 64M
+          memory: 128M
 
   landing:
     image: st2-landing:latest
