@@ -29,7 +29,7 @@ from app.services.push_notifications import send_push_to_user
 
 router = APIRouter(prefix="/intervals", tags=["intervals"])
 
-INTERVALS_OAUTH_SCOPES = "ACTIVITY:READ,WELLNESS:READ"
+INTERVALS_OAUTH_SCOPES = "ACTIVITY:READ,WELLNESS:READ,CALENDAR:READ,CALENDAR:WRITE"
 
 
 class LinkIntervalsBody(BaseModel):
