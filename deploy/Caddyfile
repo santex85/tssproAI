@@ -1,7 +1,18 @@
 # Production: set DOMAIN (landing) and APP_DOMAIN (app) in .env.
 # DOMAIN=tsspro.tech -> landing page
 # APP_DOMAIN=app.tsspro.tech -> main app + API + grafana
-# LANDING_UPSTREAM, FRONTEND_UPSTREAM: for stack deploy use st2_landing, st2_frontend.
+# ANALYTICS_DOMAIN=analytics.tsspro.tech -> Umami analytics
+# LANDING_UPSTREAM, FRONTEND_UPSTREAM, UMAMI_UPSTREAM: for stack deploy use st2_landing, st2_frontend, st2_umami.
+
+# Analytics: analytics.tsspro.tech (Umami)
+{$ANALYTICS_DOMAIN} {
+  reverse_proxy {$UMAMI_UPSTREAM}:3000 {
+    transport http {
+      read_timeout 300s
+      write_timeout 300s
+    }
+  }
+}
 
 # Landing: tsspro.tech
 {$DOMAIN} {

@@ -99,3 +99,21 @@ services:
           cpus: "0.15"
         reservations:
           memory: 24M
+
+  umami_db:
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+          cpus: "0.2"
+        reservations:
+          memory: 32M
+
+  umami:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.2"
+        reservations:
+          memory: 48M

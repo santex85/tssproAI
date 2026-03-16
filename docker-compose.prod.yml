@@ -102,6 +102,51 @@ services:
         reservations:
           memory: 32M
 
+  umami_db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD:?Set UMAMI_DB_PASSWORD in .env for Umami}
+    volumes:
+      - umami_db_data:/var/lib/postgresql/data
+    networks:
+      - backend-db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+        reservations:
+          memory: 32M
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD}@${UMAMI_DB_HOST:-st2_umami_db}:5432/umami
+      APP_SECRET: ${UMAMI_APP_SECRET:?Set UMAMI_APP_SECRET in .env for Umami}
+      HOST_URL: ${UMAMI_HOST_URL:-https://analytics.tsspro.tech}
+    depends_on:
+      umami_db:
+        condition: service_healthy
+    networks:
+      - backend-db
+      - frontend-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+
   landing:
     image: st2-landing:latest
     build:
@@ -109,6 +154,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_APP_URL: ${VITE_APP_URL:-https://app.tsspro.tech}
+        VITE_UMAMI_URL: ${VITE_UMAMI_URL:-}
+        VITE_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
     networks:
       - frontend-backend
     restart: unless-stopped
@@ -134,8 +181,10 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN in .env for production}
       APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env for production}
+      ANALYTICS_DOMAIN: ${ANALYTICS_DOMAIN:-analytics.tsspro.tech}
       LANDING_UPSTREAM: ${LANDING_UPSTREAM:-st2_landing}
       FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-st2_frontend}
+      UMAMI_UPSTREAM: ${UMAMI_UPSTREAM:-st2_umami}
     depends_on:
       - landing
       - frontend
@@ -184,3 +233,4 @@ volumes:
   caddy_data:
   caddy_config:
   grafana_data:
+  umami_db_data:
